@@ -23,7 +23,7 @@ from remotezip import RemoteZip
 
 KITTI_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/"
 RAW_URL = KITTI_URL + "raw_data/"
-RAW_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "raw_data")
+RAW_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "raw_data")
 
 
 def list_drives():
@@ -83,7 +83,7 @@ def fetch_drive(drive, out_dir, with_images, dry_run):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--out", default=RAW_DIR, help="target folder (default: raw_data next to this script)")
+    parser.add_argument("--out", default=RAW_DIR, help="target folder (default: raw_data in the project root)")
     parser.add_argument("--no-images", action="store_true", help="skip image_02: tracklets, calib and OXTS only")
     parser.add_argument("--drives", nargs="+", help="only these drives, e.g. 2011_09_26_drive_0001")
     parser.add_argument("--workers", type=int, default=4, help="drives fetched in parallel")
