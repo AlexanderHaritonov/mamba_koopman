@@ -42,14 +42,14 @@ def target_path(name, folders):
     """Where an archive member goes inside the drive folder, or None if it isn't needed.
 
     Members look like 2011_09_26/calib_cam_to_cam.txt, 2011_09_26/<drive>_sync/tracklet_labels.xml
-    and 2011_09_26/<drive>_sync/oxts/data/0000000000.txt.
+    (drive 0093: just tracklet_labels.xml) and 2011_09_26/<drive>_sync/oxts/data/0000000000.txt.
     """
+    if name.endswith("tracklet_labels.xml"):
+        return "tracklet_labels.xml"
     _, _, rel = name.partition("/")  # drop the date folder
     if rel.startswith("calib_"):
         return os.path.join("calib", rel)
     _, _, inner = rel.partition("/")
-    if inner == "tracklet_labels.xml":
-        return inner
     if inner.startswith(folders) and not inner.endswith("/"):
         return rel
     return None

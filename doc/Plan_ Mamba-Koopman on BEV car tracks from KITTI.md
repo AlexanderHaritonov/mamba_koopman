@@ -77,38 +77,30 @@ Can be nicely visualized. Shoot video: two views side by side: BEV and camera (b
 
 ## Review comments
 
-> **Claude** (2026-10-29)
-
-**Verdict:** the plan is solid and well scoped. Making data quality the success criterion is right, and the visualisation checks are the strongest part. The main risks are data volume and the missing baseline/metrics. The model section is still empty.
+> **Claude** (2026-10-29, data numbers updated 2026-10-30)
 
 ### Main concerns
 
-1. **Data volume.** Drives 1, 9 and 14 have 134 Car/Van tracklets, but only 81 are ≥ 25 frames. Stride-1 windows give ~1,500 samples, but they overlap heavily: effectively ~80 independent tracks, many probably parked. Options:
-    - Add more raw drives. Training only needs `tracklet_labels.xml`, OXTS and calib; images only for the demo drive.
-    - Use the KITTI Tracking benchmark (21 labelled sequences with OXTS): more data in one standard format.
-    - Use the ego car's own OXTS trajectory as extra moving-car samples. It's free and in every drive.
-    - Use a shorter window (e.g. 10 in / 10 out) to keep more tracks.
-2. **Baseline.** Agree with Jeremy: the real tracks are the *ground truth*, not a baseline. A baseline is a simple predictor the model has to beat:
+1. **Baseline.** Agree with Jeremy: the real tracks are the *ground truth*, not a baseline. A baseline is a simple predictor the model has to beat:
     - **Constant position** and **constant velocity**. Constant velocity is notoriously hard to beat at 1.5 s.
     - The k-most-similar overlay in step 6 is also a ready-made **kNN predictor** baseline.
     - Metrics: ADE/FDE for μ, NLL or coverage for σ (~68% of the truth inside the 1σ band).
     - Report parked and moving cars separately, otherwise "predict standing still" looks great.
-3. **Smoothing leakage.** Agree with Jeremy: centred smoothing over the whole track puts the future into the inputs, and inference has no future.
+2. **Smoothing leakage.** Agree with Jeremy: centred smoothing over the whole track puts the future into the inputs, and inference has no future.
     - Don't smooth inputs, or smooth them causally only. Smoothing the *targets* is harmless.
     - Tracklets are already annotator-interpolated and may be clean enough as is. The parked-car check will tell.
-4. **Heading.** Use the tracklet box yaw (`rz`), not the velocity direction. Velocity heading is undefined for parked cars, and θ_t is needed for re-centering in step 5.
+3. **Heading.** Use the tracklet box yaw (`rz`), not the velocity direction. Velocity heading is undefined for parked cars, and θ_t is needed for re-centering in step 5.
 
 ### Smaller points
 
+- **Data:** the 38 raw drives with tracklets (all `2011_09_26`) give 12,919 frames and 742 Car/Van tracks ≥ 25 frames, so ~23,000 heavily overlapping stride-1 windows. The share of parked cars isn't measured yet. If moving cars turn out scarce, add the ego car's OXTS trajectories or shorten the window (e.g. 10 in / 10 out).
 - **Step 3, drop height:** agree with Jeremy, keep z. Tracklet `tz` is the box bottom, and z is needed to project back into the camera. For predicted points, reuse the last known z.
 - **Step 4, occlusion:** raw tracklets have no gaps (`first_frame` + `count`). Annotators interpolate through occlusions and set per-frame `occlusion`/`truncation` flags. So the rule can simply be "require 25 consecutive frames". The truncation flag also says whether the car is in the image at all, which matters for the camera view.
-- **Validation:** reusing the held-out drive for early stopping is fine for a demo if stated. Cleaner: validate on held-out *track IDs* from the training drives, split by track, not by window (overlapping windows leak). Holding out drive 14 (~385 windows) leaves ~1,100 for training; holding out drive 9 would remove about two thirds of the data.
+- **Validation:** reusing the held-out drive for early stopping is fine for a demo if stated. Cleaner: validate on held-out *track IDs* from the training drives, split by track, not by window (overlapping windows leak). Holding out a drive now costs little: drive 9 (~1,000 windows) is under 5% of the data and drive 14 (~385 windows) under 2%, so several drives can be held out.
 - **Model section:** define "Mamba-Koopman" concretely. E.g. a Mamba encoder reads the 10 past steps into a latent z, a linear Koopman matrix K rolls z forward 15 times, a decoder outputs (μ, σ), trained with Gaussian NLL.
     - Mamba's long-sequence advantage doesn't matter at 10 steps.
-    - Keep the model tiny given ~80 tracks.
+    - Keep the model small given ~740 tracks.
 - **CPU:** the official `mamba_ssm` package needs CUDA. On CPU use a pure-PyTorch implementation; speed doesn't matter at this size.
 - **Output:** a diagonal σ in the target-car frame makes sense (along-track vs. lateral). When transforming bands to world or camera, rotate the covariance: rotated ellipses, not axis-aligned boxes. σ should grow with the horizon; if not, something is wrong.
-
-The parked-car "dots, not smears, < 0.2 m" check and the reprojection check are excellent: they test the whole calibration chain end to end, which is the 3D-vision core of the capstone.
 
 
