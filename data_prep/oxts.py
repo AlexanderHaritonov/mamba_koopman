@@ -1,5 +1,4 @@
-"""Parse KITTI raw OXTS GPS/IMU packets (oxts/data/*.txt) and the rigid calibration files
-calib_imu_to_velo.txt and calib_velo_to_cam.txt.
+"""Parse KITTI raw OXTS GPS/IMU packets (oxts/data/*.txt).
 
 The OXTS fields mirror oxts/dataformat.txt, in file order. Like the devkit's loadOxtsliteData.m, this only reads the numbers,
 """
@@ -39,13 +38,6 @@ class OxtsPacket:
     posmode: int  # position mode of the primary GPS receiver, -1 on packets KITTI filled in by interpolation
     velmode: int  # velocity mode, -1 likewise
     orimode: int  # orientation mode, -1 likewise
-
-
-@dataclass
-class RigidCalibration:
-    calib_time: str  # when the calibration was made, e.g. 25-May-2012 16:47:16
-    R: list[list[float]]  # 3x3 rotation, row by row: rotates points from the first frame into the second
-    T: list[float]  # translation in metres, applied after R
 
 
 def parse_oxts_packet(filepath) -> OxtsPacket:
@@ -94,22 +86,3 @@ def parse_oxts(oxts_dir) -> list[OxtsPacket]:
     for frame in range(len(os.listdir(data_dir))):
         packets.append(parse_oxts_packet(os.path.join(data_dir, f"{frame:010d}.txt")))
     return packets
-
-
-def parse_rigid_calibration(filepath) -> RigidCalibration:
-    """Load calib_imu_to_velo.txt or calib_velo_to_cam.txt.
-
-    calib_velo_to_cam.txt also has delta_f and delta_c, which are zero in every drive and not read.
-    """
-    lines = {}
-    with open(filepath) as f:
-        for line in f:
-            name, _, value = line.partition(":")
-            lines[name] = value.strip()
-    r = lines["R"].split()
-    t = lines["T"].split()
-    return RigidCalibration(calib_time=lines["calib_time"],
-                            R=[[float(r[0]), float(r[1]), float(r[2])],
-                               [float(r[3]), float(r[4]), float(r[5])],
-                               [float(r[6]), float(r[7]), float(r[8])]],
-                            T=[float(t[0]), float(t[1]), float(t[2])])
