@@ -6,7 +6,7 @@ but like pykitti only the first position is subtracted, not the whole first pose
 
     prepared/ego_poses.csv
         drive                    2011_09_26_drive_0001
-        frame                    video frame, as in vehicles_velo.csv
+        frame                    video frame, as in vehicle_poses_velo.csv
         time                     seconds since the drive's first frame, from image_02/timestamps.txt
                                  (frames are ~0.1035 s apart; the OXTS clock jitters, 0.06 to 0.14 s)
         velo_r11 .. velo_r33,    T_world_velo, row by row, then its translation:
@@ -24,6 +24,7 @@ import argparse
 import csv
 import math
 import os
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -177,6 +178,37 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
         row["cam2_tz"] = T_world_cam2[2, 3]
         rows.append(row)
     return rows
+
+
+@dataclass
+class EgoPose:
+    """One row of prepared/ego_poses.csv."""
+    time: float  # seconds since the drive's first frame
+    T_world_velo: np.ndarray  # 4x4, p_world = T_world_velo · p_velo
+    T_world_cam2: np.ndarray  # 4x4, p_world = T_world_cam2 · p_cam2
+
+
+EgoPoses = dict[tuple[str, int], EgoPose]  # (drive, frame) -> ego pose
+
+
+def read_ego_poses(filepath) -> EgoPoses:
+    """Load prepared/ego_poses.csv."""
+    ego_poses = {}
+    with open(filepath, newline="") as f:
+        for row in csv.DictReader(f):
+            velo_rotation = np.array([[float(row["velo_r11"]), float(row["velo_r12"]), float(row["velo_r13"])],
+                                      [float(row["velo_r21"]), float(row["velo_r22"]), float(row["velo_r23"])],
+                                      [float(row["velo_r31"]), float(row["velo_r32"]), float(row["velo_r33"])]])
+            velo_translation = np.array([float(row["velo_tx"]), float(row["velo_ty"]), float(row["velo_tz"])])
+            cam2_rotation = np.array([[float(row["cam2_r11"]), float(row["cam2_r12"]), float(row["cam2_r13"])],
+                                      [float(row["cam2_r21"]), float(row["cam2_r22"]), float(row["cam2_r23"])],
+                                      [float(row["cam2_r31"]), float(row["cam2_r32"]), float(row["cam2_r33"])]])
+            cam2_translation = np.array([float(row["cam2_tx"]), float(row["cam2_ty"]), float(row["cam2_tz"])])
+            ego_poses[(row["drive"], int(row["frame"]))] = EgoPose(
+                time=float(row["time"]),
+                T_world_velo=make_4_4_homogenous_transform(velo_rotation, velo_translation),
+                T_world_cam2=make_4_4_homogenous_transform(cam2_rotation, cam2_translation))
+    return ego_poses
 
 
 def main():
