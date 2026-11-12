@@ -38,11 +38,19 @@ If data is good, Capstone should be considered successful even if training does 
     >   Are you smoothing with all frames, or only the current position?
     >
     >   If all, may want to do 5 before 4.
+    >
+    >  (2026-11-11): skip smoothing and do not compute velocity; the model gets the raw positions.
+    >   Step 4 is then only: group by track, require 25 consecutive frames.
 
 5. **Cut into training samples:**
     - 10 positions in, 15 out.
     - Re-center on the target car’s pose (x_t, y_t, θ_t), facing +x.
     - Split by drive and save.
+
+    2026-11-11:
+    > - Downsample parked windows in the training set.
+    > - Use a larger stride for the validation set.
+    > - Build the baselines and metrics right after this step, before the model: constant position, constant velocity; ADE/FDE; parked and moving reported separately.
 
 6. **Visualize training data.** One plot per coordinate frame:
     - **world BEV map:** all tracks of one drive. Parked cars must be dots, not smears, and you can put a number on it (position spread < ~0.2 m).
@@ -50,6 +58,9 @@ If data is good, Capstone should be considered successful even if training does 
     - **target car frame:** Sample = one car at one moment t, with its 10 past positions and 15 future positions.
         - Pick randomly some samples. Plot each. In that car’s frame, facing +x.
         - Overlay samples with similar past positions. Take 1 randomly, find k most similar samples.
+
+    > **Comment** on "find k most similar samples":
+    > 2026-11-11: exclude the query car's own track (or drive) from the neighbours, here and in the kNN baseline.
 
 ## Mamba-Koopman training
 
@@ -66,6 +77,11 @@ As per Claude, this shouldn't take much resources. I rented a simple gpu Scalway
 >
 >     It would be not clean for prod, but for demo simplest is reuse that same drive taken out of training.
 
+> 2026-11-11: hold out two drives: 0014 for test and the video (94% of its windows moving), 0015 for validation (66% moving).
+>   Together 4% of the data. Freeze the split before the first training run.
+
+> 2026-11-11: with Gaussian NLL, clamp σ to a minimum of ~0.1 m, else parked cars can blow up the loss.
+
 ## Output
 
 Predicted bands. The model predicts 15 steps (frames), for each frame:
@@ -73,7 +89,12 @@ Predicted bands. The model predicts 15 steps (frames), for each frame:
 - Mu = (Mu_x, Mu_y) = averaged / mean car’s position.
 - Sigma = (Sigma_x, Sigma_y) = spread.
 
+> **Comment** on "Sigma":
+> - **Claude** (2026-11-11): a single Gaussian per step is unimodal — at a crossing ("straight or turn") it gives one wide band between the options. Acceptable at 1.5 s; name it as a known limitation.
+
 Can be nicely visualized. Shoot video: two views side by side: BEV and camera (bands projected via the reverse coordinate transformation chain: target-car frame → world → Velodyne → camera → pixels).
+
+> 2026-11-11: shoot the video on the held-out drive; avoid drives 0061, 0064, 0086 (height offset) and 0093 (no ego poses).
 
 ## Review comments
 
@@ -94,6 +115,7 @@ Can be nicely visualized. Shoot video: two views side by side: BEV and camera (b
 ### Smaller points
 
 - **Data:** the 38 raw drives with tracklets (all `2011_09_26`) give 12,919 frames and 742 Car/Van tracks ≥ 25 frames, so ~23,000 heavily overlapping stride-1 windows. The share of parked cars isn't measured yet. If moving cars turn out scarce, add the ego car's OXTS trajectories or shorten the window (e.g. 10 in / 10 out).
+    - Measured 2026-11-11: of 22,875 windows, 38% moving and 62% parked; 177 of 709 tracks move. Enough moving data — keep 10 in / 15 out.
 - **Step 3, drop height:** agree with Jeremy, keep z. Tracklet `tz` is the box bottom, and z is needed to project back into the camera. For predicted points, reuse the last known z.
 - **Step 4, occlusion:** raw tracklets have no gaps (`first_frame` + `count`). Annotators interpolate through occlusions and set per-frame `occlusion`/`truncation` flags. So the rule can simply be "require 25 consecutive frames". The truncation flag also says whether the car is in the image at all, which matters for the camera view.
 - **Validation:** reusing the held-out drive for early stopping is fine for a demo if stated. Cleaner: validate on held-out *track IDs* from the training drives, split by track, not by window (overlapping windows leak). Holding out a drive now costs little: drive 9 (~1,000 windows) is under 5% of the data and drive 14 (~385 windows) under 2%, so several drives can be held out.
