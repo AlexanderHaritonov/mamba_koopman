@@ -6,7 +6,7 @@ If data is good, Capstone should be considered successful even if training does 
 ## Training data preparation and visualisation
 
 1. **Car’s positions relative to ego car, per video frame**
-    - **a) From tracklets:** read `tracklet_labels.xml` and keep Car and Van positions, already in the Velodyne frame.
+    - **a) From tracklets:** read `tracklet_labels.xml` and keep Car, Van and Truck's positions, already in the Velodyne frame.
     - **b) Late Fusion:** detect and track cars in the camera image, then take each box’s position from the lidar points inside it (or from the ground plane?), in the Velodyne frame.
 
     > **Comments** on a) / b):
@@ -26,6 +26,11 @@ If data is good, Capstone should be considered successful even if training does 
 
     > **Comment** on "drop height":
     > - **Jeremy Cohen** (2026-10-19): maybe reuse it later on without dropping it entirely
+
+    > 2026-11-12: **file contract 1 of 3:** `prepared/vehicle_poses_world.csv`.
+    > - Steps 4–6 and training read only `drive, track_id, object_type, frame, time, x, y, z, yaw, truncation`.
+    > - Other data sources add rows in the same columns.
+    > - Stages exchange data only through the three contract files.
 
 4. **Group into per-car sequences:** one position sequence per car ID. Smooth it and compute velocity and heading.
 
@@ -51,6 +56,18 @@ If data is good, Capstone should be considered successful even if training does 
     > - Downsample parked windows in the training set.
     > - Use a larger stride for the validation set.
     > - Build the baselines and metrics right after this step, before the model: constant position, constant velocity; ADE/FDE; parked and moving reported separately.
+
+    2026-11-12, **file contract 2 of 3:** samples file, one `.npz` per split, with named arrays:
+    > - `past` (N, input steps, 3) and `future` (N, output steps, 3): x, y, yaw in the target-car frame.
+    > - `anchor_pose` (N, 4): x, y, z, yaw in the world.
+    > - `drive`, `track_id`, `frame`.
+    > - `displacement`, `yaw_change`: raw numbers per sample.
+    > - `seconds_per_step`: one number.
+
+    2026-11-12, rules:
+    > - Input and output lengths are two arguments of the cutting script. Everywhere else they come from the array shapes.
+    > - One module for the frame transform: world → car frame and car frame → world.
+    > - The split is two explicit lists of drives (validation, test) in one file.
 
 6. **Visualize training data.** One plot per coordinate frame:
     - **world BEV map:** all tracks of one drive. Parked cars must be dots, not smears, and you can put a number on it (position spread < ~0.2 m).
@@ -82,6 +99,18 @@ As per Claude, this shouldn't take much resources. I rented a simple gpu Scalway
 
 > 2026-11-11: with Gaussian NLL, clamp σ to a minimum of ~0.1 m, else parked cars can blow up the loss.
 
+> 2026-11-12: the model is three separate pieces: encoder, rollout, decoder. The rollout takes the number of steps as an argument.
+> - The decoder for μ is linear (one matrix). σ has a small nonlinear head.
+> - The rollout is only a matrix multiplication with K: no activation or normalisation between the steps. K starts as the identity matrix.
+
+> checks after training:
+> - Plot the eigenvalues of K in the complex plane with the unit circle. They should be near or inside the circle.
+> - Roll out 45 steps instead of 15 on a few test samples and plot. The path should continue smoothly and σ should keep growing.
+
+> optional ablation: the same encoder with a plain network head that outputs all 15 steps at once, compared with the Koopman rollout.
+
+> no consistency loss (encoding of a later window against the rolled-forward latent). Each sample is re-centred on its own car pose, so the two latents are in different frames.
+
 ## Output
 
 Predicted bands. The model predicts 15 steps (frames), for each frame:
@@ -91,6 +120,10 @@ Predicted bands. The model predicts 15 steps (frames), for each frame:
 
 > **Comment** on "Sigma":
 > - **Claude** (2026-11-11): a single Gaussian per step is unimodal — at a crossing ("straight or turn") it gives one wide band between the options. Acceptable at 1.5 s; name it as a known limitation.
+
+> 2026-11-12: **file contract 3 of 3:** predictions file with `mu` and `sigma`, both (N, output steps, 2), in the target-car frame, in the order of the samples file.
+> - Baselines and the model write the same format.
+> - Evaluation and video do not import the model.
 
 Can be nicely visualized. Shoot video: two views side by side: BEV and camera (bands projected via the reverse coordinate transformation chain: target-car frame → world → Velodyne → camera → pixels).
 
