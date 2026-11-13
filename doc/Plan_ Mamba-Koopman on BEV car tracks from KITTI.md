@@ -53,14 +53,13 @@ If data is good, Capstone should be considered successful even if training does 
     - Split by drive and save.
 
     2026-11-11:
-    > - Downsample parked windows in the training set.
-    > - Use a larger stride for the validation set.
+    > - Save all windows of each split, without thinning.
     > - Build the baselines and metrics right after this step, before the model: constant position, constant velocity; ADE/FDE; parked and moving reported separately.
 
     2026-11-12, **file contract 2 of 3:** samples file, one `.npz` per split, with named arrays:
     > - `past` (N, input steps, 3) and `future` (N, output steps, 3): x, y, yaw in the target-car frame.
     > - `anchor_pose` (N, 4): x, y, z, yaw in the world.
-    > - `drive`, `track_id`, `frame`.
+    > - `drive`, `track_id`, `object_type`, `frame`.
     > - `displacement`, `yaw_change`: raw numbers per sample.
     > - `seconds_per_step`: one number.
 
@@ -96,6 +95,10 @@ As per Claude, this shouldn't take much resources. I rented a simple gpu Scalway
 
 > 2026-11-11: hold out two drives: 0014 for test and the video (94% of its windows moving), 0015 for validation (66% moving).
 >   Together 4% of the data. Freeze the split before the first training run.
+
+> 2026-11-13: when the training script loads the samples:
+> - Downsample parked windows in the training set.
+> - Use a larger stride for the validation set.
 
 > 2026-11-11: with Gaussian NLL, clamp σ to a minimum of ~0.1 m, else parked cars can blow up the loss.
 
