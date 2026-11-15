@@ -1,4 +1,4 @@
-"""Car, Van and Truck poses in the fixed world frame of their drive, one row per vehicle per frame.
+"""Car, Van, Truck and ego car poses in the fixed world frame of their drive, one row per vehicle per frame.
 
 The bird's-eye view is (x, y, yaw). z is kept as well, for projecting back into the camera and for later use.
 
@@ -10,12 +10,16 @@ The bird's-eye view is (x, y, yaw). z is kept as well, for projecting back into 
                      (0 = East, pi/2 = North). No jump between +pi and -pi inside a track.
         h, w, l, occlusion, truncation, state, finished    as in vehicle_poses_velo.csv
 
+The ego car is one more track per drive: track_id -1, object_type Ego, truncation 2, position at the middle of
+the car's bottom, every frame of the drive. h, w, l, occlusion, state and finished are empty.
+
 Drives without ego poses are skipped.
 
 Printed checks:
     static      parked cars the ego car drove past: how many stay within 0.2 m
     heading     yaw minus direction of motion, for vehicles faster than 3 m/s: should be near 0 degrees
     height      car z minus road height under the ego car, for cars within 20 m: should be near 0 m
+    ego heading the heading check for the ego car
 """
 import argparse
 import csv
@@ -61,6 +65,10 @@ class WorldRow(TypedDict):
 
 
 VELODYNE_HEIGHT = 1.73  # metres above the road
+EGO_TRACK_ID = -1
+EGO_OBJECT_TYPE = "Ego"
+EGO_TRUNCATION = 2  # outside the image
+EGO_POINT_VELO = np.array([0.53, 0.0, -VELODYNE_HEIGHT])  # middle of the ego car's bottom, in the Velodyne frame
 DOT_SPREAD = 0.2  # metres, largest world spread of a parked car
 STATIC_SPREAD = 1.0  # metres, largest world spread of a standing track
 PASSED_SPREAD = 2.0  # metres, smallest Velodyne spread of a track the ego car drove past
@@ -128,6 +136,49 @@ def world_track_rows(velo_rows: list[VeloRow], ego_poses: EgoPoses) -> list[Worl
     return rows
 
 
+def ego_track_rows(drive: str, ego_poses: EgoPoses) -> list[WorldRow]:
+    """The ego car as one more track of the drive, every frame."""
+    frames = []
+    for pose_drive, frame in ego_poses:
+        if pose_drive == drive:
+            frames.append(frame)
+    frames.sort()
+
+    times = []
+    positions_world = []
+    wrapped_yaws = []
+    for frame in frames:
+        ego_pose = ego_poses[(drive, frame)]
+        rotation = ego_pose.T_world_velo[:3, :3]
+        translation = ego_pose.T_world_velo[:3, 3]
+        times.append(ego_pose.time)
+        positions_world.append(rotation @ EGO_POINT_VELO + translation)
+        forward_world = rotation @ np.array([1.0, 0.0, 0.0])
+        wrapped_yaws.append(math.atan2(forward_world[1], forward_world[0]))
+    unwrapped_yaws = np.unwrap(wrapped_yaws)
+
+    rows = []
+    for row_index in range(len(frames)):
+        position_world = positions_world[row_index]
+        rows.append(WorldRow(drive=drive,
+                             track_id=str(EGO_TRACK_ID),
+                             object_type=EGO_OBJECT_TYPE,
+                             frame=str(frames[row_index]),
+                             time=times[row_index],
+                             x=float(position_world[0]),
+                             y=float(position_world[1]),
+                             z=float(position_world[2]),
+                             yaw=float(unwrapped_yaws[row_index]),
+                             h="",
+                             w="",
+                             l="",
+                             occlusion="",
+                             truncation=str(EGO_TRUNCATION),
+                             state="",
+                             finished=""))
+    return rows
+
+
 def xy_spread(rows: list[VeloRow] | list[WorldRow]) -> float:
     """Largest xy distance of a track's positions from their mean, in metres."""
     xs = []
@@ -179,16 +230,19 @@ def height_errors(world_rows: list[WorldRow], ego_poses: EgoPoses) -> list[float
 
 @dataclass
 class CheckValues:
-    """Values of the three printed checks."""
+    """Values of the printed checks."""
     static_spreads: list[float]  # metres
     heading_errors_degrees: list[float]
     height_errors_metres: list[float]
+    ego_heading_errors_degrees: list[float]
 
 
-def transform_drive_to_world(velo_tracks: VeloTracks, ego_poses: EgoPoses) -> tuple[list[WorldRow], CheckValues]:
-    """World rows of all tracks of one drive, and their check values."""
+def transform_drive_to_world(drive: str, velo_tracks: VeloTracks,
+                             ego_poses: EgoPoses) -> tuple[list[WorldRow], CheckValues]:
+    """World rows of all tracks of one drive and of its ego car, and their check values."""
     drive_rows = []
-    check_values = CheckValues(static_spreads=[], heading_errors_degrees=[], height_errors_metres=[])
+    check_values = CheckValues(static_spreads=[], heading_errors_degrees=[], height_errors_metres=[],
+                               ego_heading_errors_degrees=[])
     for velo_rows in velo_tracks.values():
         world_rows = world_track_rows(velo_rows, ego_poses)
         drive_rows.extend(world_rows)
@@ -198,6 +252,10 @@ def transform_drive_to_world(velo_tracks: VeloTracks, ego_poses: EgoPoses) -> tu
             check_values.static_spreads.append(world_spread)
         check_values.heading_errors_degrees.extend(heading_errors(world_rows))
         check_values.height_errors_metres.extend(height_errors(world_rows, ego_poses))
+
+    ego_rows = ego_track_rows(drive, ego_poses)
+    drive_rows.extend(ego_rows)
+    check_values.ego_heading_errors_degrees.extend(heading_errors(ego_rows))
     return drive_rows, check_values
 
 
@@ -211,10 +269,12 @@ def check_summary(check_values: CheckValues) -> str:
         if spread < DOT_SPREAD:
             dot_count += 1
     parts = []
+
     if static_spreads:
         parts.append(f"static {dot_count}/{len(static_spreads)} under {DOT_SPREAD} m (median {np.median(static_spreads):.2f} m)")
     else:
         parts.append("static none")
+
     if heading_errors_degrees:
         backwards_count = 0
         for error in heading_errors_degrees:
@@ -223,11 +283,20 @@ def check_summary(check_values: CheckValues) -> str:
         parts.append(f"heading median {np.median(heading_errors_degrees):.1f} deg, {backwards_count}/{len(heading_errors_degrees)} over 90 deg")
     else:
         parts.append("heading none moving")
+
     if height_errors_metres:
         parts.append(f"height median {np.median(height_errors_metres):+.2f} m, "
                      f"5-95% {np.percentile(height_errors_metres, 5):+.2f}..{np.percentile(height_errors_metres, 95):+.2f} m")
     else:
         parts.append("height none near")
+
+    ego_heading_errors_degrees = check_values.ego_heading_errors_degrees
+    if ego_heading_errors_degrees:
+        parts.append(f"ego heading median {np.median(ego_heading_errors_degrees):.1f} deg, "
+                     f"max {np.max(ego_heading_errors_degrees):.1f} deg")
+    else:
+        parts.append("ego heading none moving")
+        
     return " | ".join(parts)
 
 
@@ -245,7 +314,8 @@ def main():
     for drive, frame in ego_poses:
         drives_with_ego_poses.add(drive)
 
-    all_check_values = CheckValues(static_spreads=[], heading_errors_degrees=[], height_errors_metres=[])
+    all_check_values = CheckValues(static_spreads=[], heading_errors_degrees=[], height_errors_metres=[],
+                                   ego_heading_errors_degrees=[])
     total_rows = 0
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", newline="") as f:
@@ -260,13 +330,14 @@ def main():
                 print(f"{drive}: skipped {skipped_rows} rows, no ego poses")
                 continue
 
-            drive_rows, check_values = transform_drive_to_world(velo_tracks, ego_poses)
+            drive_rows, check_values = transform_drive_to_world(drive, velo_tracks, ego_poses)
             writer.writerows(drive_rows)
-            print(f"{drive}: {len(drive_rows)} rows, {len(velo_tracks)} tracks | {check_summary(check_values)}")
+            print(f"{drive}: {len(drive_rows)} rows, {len(velo_tracks)} tracks + ego | {check_summary(check_values)}")
             total_rows += len(drive_rows)
             all_check_values.static_spreads.extend(check_values.static_spreads)
             all_check_values.heading_errors_degrees.extend(check_values.heading_errors_degrees)
             all_check_values.height_errors_metres.extend(check_values.height_errors_metres)
+            all_check_values.ego_heading_errors_degrees.extend(check_values.ego_heading_errors_degrees)
 
     print(f"all drives: {check_summary(all_check_values)}")
     print(f"wrote {total_rows} rows to {args.out}")
