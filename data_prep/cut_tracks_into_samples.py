@@ -21,6 +21,7 @@ from group_tracks_by_vehicle import VehicleTrack, keep_long_tracks, read_vehicle
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "prepared", "vehicle_poses_world.csv")
+OUT_DIR = os.path.join(PROJECT_DIR, "prepared")
 CHECK_MOVING_SPEED = 0.6  # m/s, average speed from first to last frame of a window, only for the printed check
 CHECK_TURN_YAW_CHANGE = math.radians(15)  # smallest yaw change of a turn, only for the printed check
 
@@ -124,6 +125,62 @@ def split_samples(samples: list[Sample]) -> dict[str, list[Sample]]:
     return samples_by_split
 
 
+def median_seconds_per_step(tracks: list[VehicleTrack]) -> float:
+    """Median time between consecutive frames, over all tracks."""
+    intervals = []
+    for track in tracks:
+        intervals.extend(np.diff(track.times))
+    return float(np.median(intervals))
+
+
+def save_samples(samples: list[Sample], filepath: str, seconds_per_step: float):
+    """One samples file, compressed."""
+    if len(samples) == 0:
+        raise ValueError(f"no samples for {filepath}")
+    pasts = []
+    futures = []
+    anchor_poses = []
+    drives = []
+    track_ids = []
+    object_types = []
+    frames = []
+    displacements = []
+    yaw_changes = []
+    for sample in samples:
+        pasts.append(sample.past)
+        futures.append(sample.future)
+        anchor_poses.append(sample.anchor_pose)
+        drives.append(sample.drive)
+        track_ids.append(sample.track_id)
+        object_types.append(sample.object_type)
+        frames.append(sample.frame)
+        displacements.append(sample.displacement)
+        yaw_changes.append(sample.yaw_change)
+    np.savez_compressed(filepath,
+                        past=np.array(pasts, dtype=np.float32),
+                        future=np.array(futures, dtype=np.float32),
+                        anchor_pose=np.array(anchor_poses, dtype=np.float64),
+                        drive=np.array(drives),
+                        track_id=np.array(track_ids, dtype=np.int64),
+                        object_type=np.array(object_types),
+                        frame=np.array(frames, dtype=np.int64),
+                        displacement=np.array(displacements, dtype=np.float32),
+                        yaw_change=np.array(yaw_changes, dtype=np.float32),
+                        seconds_per_step=np.array(seconds_per_step, dtype=np.float64))
+
+
+def save_all_splits(samples_by_split: dict[str, list[Sample]], out_dir: str,
+                    seconds_per_step: float) -> dict[str, str]:
+    """One file per split: samples_training.npz, samples_validation.npz, samples_test.npz. Returns their paths."""
+    os.makedirs(out_dir, exist_ok=True)
+    filepaths_by_split = {}
+    for split in samples_by_split:
+        filepath = os.path.join(out_dir, f"samples_{split}.npz")
+        save_samples(samples_by_split[split], filepath, seconds_per_step)
+        filepaths_by_split[split] = filepath
+    return filepaths_by_split
+
+
 def print_window_checks(tracks: list[VehicleTrack], windows: list[Window]):
     """Number of windows against the expected number, and the frames of the first window."""
     example = windows[0]
@@ -220,12 +277,29 @@ def print_split_checks(samples_by_split: dict[str, list[Sample]]):
             print(f"WARNING: {drive} is listed in drive_split.py but has no samples")
 
 
+def print_saved_file_checks(samples_by_split: dict[str, list[Sample]], filepaths_by_split: dict[str, str]):
+    """Read every file back: every array has one row per sample, and the size on disk."""
+    per_sample_arrays = ["past", "future", "anchor_pose", "drive", "track_id", "object_type", "frame",
+                         "displacement", "yaw_change"]
+    for split in filepaths_by_split:
+        filepath = filepaths_by_split[split]
+        with np.load(filepath) as data:
+            sample_count = len(samples_by_split[split])
+            for name in per_sample_arrays:
+                if data[name].shape[0] != sample_count:
+                    raise ValueError(f"{filepath}: {name} has {data[name].shape[0]} rows, expected {sample_count}")
+            print(f"{os.path.basename(filepath)}: {sample_count} samples, past {data['past'].shape}, "
+                  f"future {data['future'].shape}, seconds_per_step {float(data['seconds_per_step']):.4f}, "
+                  f"{os.path.getsize(filepath) / 1e6:.1f} MB")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--vehicle-poses-world", default=VEHICLE_POSES_WORLD_PATH,
                         help="step 3 CSV (default: prepared/vehicle_poses_world.csv)")
     parser.add_argument("--input-steps", type=int, default=10, help="positions in, up to and with t (default: 10)")
     parser.add_argument("--output-steps", type=int, default=15, help="positions out, after t (default: 15)")
+    parser.add_argument("--out-dir", default=OUT_DIR, help="folder for the samples files (default: prepared)")
     args = parser.parse_args()
 
     tracks = keep_long_tracks(read_vehicle_tracks(args.vehicle_poses_world), args.input_steps + args.output_steps)
@@ -236,11 +310,13 @@ def main():
     for window in windows:
         samples.append(make_sample(window))
     samples_by_split = split_samples(samples)
+    filepaths_by_split = save_all_splits(samples_by_split, args.out_dir, median_seconds_per_step(tracks))
 
     print_window_checks(tracks, windows)
     print_car_frame_checks(windows)
     print_sample_checks(windows, samples)
     print_split_checks(samples_by_split)
+    print_saved_file_checks(samples_by_split, filepaths_by_split)
 
 
 if __name__ == "__main__":
