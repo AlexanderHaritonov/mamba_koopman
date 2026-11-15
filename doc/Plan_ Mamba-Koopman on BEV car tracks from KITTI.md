@@ -58,8 +58,7 @@ If data is good, Capstone should be considered successful even if training does 
 
     2026-11-11:
     > - Save all windows of each split, without thinning.
-    > - Build the baselines and metrics right after this step, before the model: constant position, constant velocity; ADE/FDE; parked and moving reported separately.
-    > - 2026-11-14: report labeled cars and the ego car separately.
+    > - Build the baselines and metrics before the model
 
     2026-11-12, **file contract 2 of 3:** samples file, one `.npz` per split, with named arrays:
     > - `past` (N, input steps, 3) and `future` (N, output steps, 3): x, y, yaw in the target-car frame.
@@ -73,15 +72,21 @@ If data is good, Capstone should be considered successful even if training does 
     > - One module for the frame transform: world → car frame and car frame → world.
     > - The split is two explicit lists of drives (validation, test) in one file.
 
-6. **Visualize training data.** One plot per coordinate frame:
-    - **world BEV map:** all tracks of one drive. Parked cars must be dots, not smears, and you can put a number on it (position spread < ~0.2 m).
-    - **camera image:** project world positions back into the video. The dots should land on the cars.
-    - **target car frame:** Sample = one car at one moment t, with its 10 past positions and 15 future positions.
-        - Pick randomly some samples. Plot each. In that car’s frame, facing +x.
-        - Overlay samples with similar past positions. Take 1 randomly, find k most similar samples.
+6. **Visualize training data and its predictability.** In this order:
+    - **Metrics and two baselines:** constant position and constant velocity write predictions files. ADE/FDE for μ; NLL or 1σ coverage for σ.
+    - **Plots,** one per coordinate frame, each with an optional predictions file:
+        - **world BEV map:** all tracks of one drive. Parked cars must be dots, not smears, and you can put a number on it (position spread < ~0.2 m).
+        - **camera image:** project world positions back into the video. The dots should land on the cars.
+        - **target car frame:** Sample = one car at one moment t, with its 10 past positions and 15 future positions.
+            - Pick randomly some samples. Plot each. In that car’s frame, facing +x.
+            - Overlay samples with similar past positions. Take 1 randomly, find k most similar samples. Their mean and spread are the kNN baseline.
+    - **Error against horizon:** one curve per baseline. Parked, moving and turning cars, and labeled cars and the ego car, separately.
 
     > **Comment** on "find k most similar samples":
     > 2026-11-11: exclude the query car's own track (or drive) from the neighbours, here and in the kNN baseline.
+
+7. **Shoot a video of the training data** on the test drive (0011): camera image and world BEV map side by side, frame by frame, with the plots of step 6. Optionally with the bands of a baseline predictions file, and a third panel with the target car frame of one car.
+    - The video shooting is one function that takes the drive as a parameter.
 
 ## Mamba-Koopman training
 
