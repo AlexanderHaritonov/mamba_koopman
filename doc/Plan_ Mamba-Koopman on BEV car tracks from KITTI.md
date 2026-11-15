@@ -73,7 +73,9 @@ If data is good, Capstone should be considered successful even if training does 
     > - The split is two explicit lists of drives (validation, test) in one file.
 
 6. **Visualize training data and its predictability.** In this order:
-    - **Metrics and two baselines:** constant position and constant velocity write predictions files. ADE/FDE for μ; NLL or 1σ coverage for σ.
+    - **Metrics and three baselines:** constant position, constant velocity and a Kalman filter write predictions files. ADE/FDE for μ; NLL or 1σ coverage for σ.
+        - 2026-11-16: Kalman filter with a constant-velocity model. It filters the 10 past positions, then predicts 15 steps. Its covariance gives σ. The two noise values are tuned on the training split.
+        - 2026-11-16: constant position and constant velocity write only μ, no σ. They are drawn as a line, without a band, and get only ADE/FDE.
     - **Plots,** one per coordinate frame, each with an optional predictions file:
         - **world BEV map:** all tracks of one drive. Parked cars must be dots, not smears, and you can put a number on it (position spread < ~0.2 m).
         - **camera image:** project world positions back into the video. The dots should land on the cars.
@@ -136,6 +138,7 @@ Predicted bands. The model predicts 15 steps (frames), for each frame:
 
 > 2026-11-12: **file contract 3 of 3:** predictions file with `mu` and `sigma`, both (N, output steps, 2), in the target-car frame, in the order of the samples file.
 > - Baselines and the model write the same format.
+> - 2026-11-16: `sigma` is optional. A file without it is drawn as a line.
 > - Evaluation and video do not import the model.
 
 Can be nicely visualized. Shoot video: two views side by side: BEV and camera (bands projected via the reverse coordinate transformation chain: target-car frame → world → Velodyne → camera → pixels).
