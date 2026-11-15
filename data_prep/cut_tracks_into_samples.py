@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from car_frame import car_frame_to_world, world_to_car_frame
+from drive_split import TEST_DRIVES, VALIDATION_DRIVES
 from group_tracks_by_vehicle import VehicleTrack, keep_long_tracks, read_vehicle_tracks
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -107,6 +108,22 @@ def window_duration(window: Window) -> float:
     return float(window.track.times[last_index] - window.track.times[first_index])
 
 
+def split_samples(samples: list[Sample]) -> dict[str, list[Sample]]:
+    """Samples grouped into training, validation and test by their drive."""
+    for drive in VALIDATION_DRIVES:
+        if drive in TEST_DRIVES:
+            raise ValueError(f"{drive} is in both VALIDATION_DRIVES and TEST_DRIVES")
+    samples_by_split = {"training": [], "validation": [], "test": []}
+    for sample in samples:
+        if sample.drive in VALIDATION_DRIVES:
+            samples_by_split["validation"].append(sample)
+        elif sample.drive in TEST_DRIVES:
+            samples_by_split["test"].append(sample)
+        else:
+            samples_by_split["training"].append(sample)
+    return samples_by_split
+
+
 def print_window_checks(tracks: list[VehicleTrack], windows: list[Window]):
     """Number of windows against the expected number, and the frames of the first window."""
     example = windows[0]
@@ -179,6 +196,30 @@ def print_sample_checks(windows: list[Window], samples: list[Sample]):
           f"path bends to the side of yaw_change: {matching_side_count} ({100 * matching_side_count / turn_count:.1f}%)")
 
 
+def print_split_checks(samples_by_split: dict[str, list[Sample]]):
+    """Drives and samples per split. Every listed drive must have samples."""
+    total_count = 0
+    for split in samples_by_split:
+        total_count += len(samples_by_split[split])
+    for split in samples_by_split:
+        drives = []
+        for sample in samples_by_split[split]:
+            if sample.drive not in drives:
+                drives.append(sample.drive)
+        sample_count = len(samples_by_split[split])
+        print(f"{split}: {len(drives)} drives, {sample_count} samples ({100 * sample_count / total_count:.1f}%)")
+
+    for drive in VALIDATION_DRIVES + TEST_DRIVES:
+        found = False
+        for split in ["validation", "test"]:
+            for sample in samples_by_split[split]:
+                if sample.drive == drive:
+                    found = True
+                    break
+        if not found:
+            print(f"WARNING: {drive} is listed in drive_split.py but has no samples")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--vehicle-poses-world", default=VEHICLE_POSES_WORLD_PATH,
@@ -194,10 +235,12 @@ def main():
     samples = []
     for window in windows:
         samples.append(make_sample(window))
+    samples_by_split = split_samples(samples)
 
     print_window_checks(tracks, windows)
     print_car_frame_checks(windows)
     print_sample_checks(windows, samples)
+    print_split_checks(samples_by_split)
 
 
 if __name__ == "__main__":

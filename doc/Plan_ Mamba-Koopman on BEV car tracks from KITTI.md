@@ -32,6 +32,10 @@ If data is good, Capstone should be considered successful even if training does 
     > - Other data sources add rows in the same columns.
     > - Stages exchange data only through the three contract files.
 
+    > 2026-11-14: the ego car is training data too. Its poses (step 2) become rows of the same table, one track per drive:
+    > - `object_type` = `Ego`, `truncation` = 2 (never in the image).
+    > - Position moved from the Velodyne to the centre of the car's bottom, as for the labeled cars.
+
 4. **Group into per-car sequences:** one position sequence per car ID. Smooth it and compute velocity and heading.
 
     > **Comment** on "Group into per-car sequences":
@@ -55,6 +59,7 @@ If data is good, Capstone should be considered successful even if training does 
     2026-11-11:
     > - Save all windows of each split, without thinning.
     > - Build the baselines and metrics right after this step, before the model: constant position, constant velocity; ADE/FDE; parked and moving reported separately.
+    > - 2026-11-14: report labeled cars and the ego car separately.
 
     2026-11-12, **file contract 2 of 3:** samples file, one `.npz` per split, with named arrays:
     > - `past` (N, input steps, 3) and `future` (N, output steps, 3): x, y, yaw in the target-car frame.
@@ -93,11 +98,11 @@ As per Claude, this shouldn't take much resources. I rented a simple gpu Scalway
 >
 >     It would be not clean for prod, but for demo simplest is reuse that same drive taken out of training.
 
-> 2026-11-11: hold out two drives: 0014 for test and the video (94% of its windows moving), 0015 for validation (66% moving).
->   Together 4% of the data. Freeze the split before the first training run.
+> 2026-11-14: hold out two drives: 0011 for test and the video, 0018 for validation.
+>   Freeze the split before the first training run.
 
 > 2026-11-13: when the training script loads the samples:
-> - Downsample parked windows in the training set.
+> - Downsample parked windows and ego windows in the training set.
 > - Use a larger stride for the validation set.
 
 > 2026-11-11: with Gaussian NLL, clamp σ to a minimum of ~0.1 m, else parked cars can blow up the loss.
@@ -152,6 +157,7 @@ Can be nicely visualized. Shoot video: two views side by side: BEV and camera (b
 
 - **Data:** the 38 raw drives with tracklets (all `2011_09_26`) give 12,919 frames and 742 Car/Van tracks ≥ 25 frames, so ~23,000 heavily overlapping stride-1 windows. The share of parked cars isn't measured yet. If moving cars turn out scarce, add the ego car's OXTS trajectories or shorten the window (e.g. 10 in / 10 out).
     - Measured 2026-11-11: of 22,875 windows, 38% moving and 62% parked; 177 of 709 tracks move. Enough moving data — keep 10 in / 15 out.
+    - 2026-11-14: with moving = faster than 0.6 m/s over the window, labeled cars give 7,054 moving windows (31%) and 792 turning ones (over 15°). The ego car adds 10,502 moving and 1,160 turning.
 - **Step 3, drop height:** agree with Jeremy, keep z. Tracklet `tz` is the box bottom, and z is needed to project back into the camera. For predicted points, reuse the last known z.
 - **Step 4, occlusion:** raw tracklets have no gaps (`first_frame` + `count`). Annotators interpolate through occlusions and set per-frame `occlusion`/`truncation` flags. So the rule can simply be "require 25 consecutive frames". The truncation flag also says whether the car is in the image at all, which matters for the camera view.
 - **Validation:** reusing the held-out drive for early stopping is fine for a demo if stated. Cleaner: validate on held-out *track IDs* from the training drives, split by track, not by window (overlapping windows leak). Holding out a drive now costs little: drive 9 (~1,000 windows) is under 5% of the data and drive 14 (~385 windows) under 2%, so several drives can be held out.
