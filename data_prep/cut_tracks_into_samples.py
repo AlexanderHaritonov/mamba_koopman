@@ -7,6 +7,8 @@ So t runs from the track's first frame + input_steps - 1 to its last frame - out
 
 Past and future positions are re-centred on the car's pose at t (car_frame.py): x, y, yaw, facing +x.
 Each sample also keeps where it comes from (drive, track, type, frame of t, world pose at t) and how far the car moves and turns over the whole window.
+
+Output: samples/samples_<split>.npz, for training, validation and test (drives in drive_split.py). Reads samples/vehicle_poses_world.csv.
 """
 import argparse
 import math

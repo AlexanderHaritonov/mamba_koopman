@@ -2,7 +2,7 @@
 
 Positions are in the Velodyne frame of that video frame (x forward, y left, z up), which moves with the ego car.
 
-    samples/vehicle_poses_velo.csv
+Output: samples/vehicle_poses_velo.csv
         drive        2011_09_26_drive_0001
         track_id     position of the tracklet in tracklet_labels.xml (all classes counted), unique per drive
         object_type  Car, Van or Truck

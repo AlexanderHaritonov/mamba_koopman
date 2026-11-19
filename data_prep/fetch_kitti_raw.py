@@ -4,7 +4,7 @@ multi-GB *_sync.zip archives (remotezip, HTTP range requests). Reruns resume.
 
 Same layout as kitty_data/, but with the full drive name as folder (drive numbers repeat across dates):
 
-    raw_data/2011_09_26_drive_0001/
+Output: raw_data/2011_09_26_drive_0001/
         calib/calib_{cam_to_cam,imu_to_velo,velo_to_cam}.txt
         tracklet_labels.xml
         2011_09_26_drive_0001_sync/

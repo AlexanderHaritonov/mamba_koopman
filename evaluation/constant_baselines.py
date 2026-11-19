@@ -2,6 +2,8 @@
 
 Constant position: the car stays where it is at t.
 Constant velocity: a straight line is fitted by least squares through the last positions up to t, and continued for the output steps.
+
+Output: predictions/constant_position_<split>.npz and predictions/constant_velocity_<split>.npz, for training, validation and test.
 """
 import argparse
 

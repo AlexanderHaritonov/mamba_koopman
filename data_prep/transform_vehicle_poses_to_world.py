@@ -2,7 +2,7 @@
 
 The bird's-eye view is (x, y, yaw). z is kept as well, for projecting back into the camera and for later use.
 
-    samples/vehicle_poses_world.csv
+Output: samples/vehicle_poses_world.csv
         drive, track_id, object_type, frame    as in vehicle_poses_velo.csv
         time         seconds since the drive's first frame
         x, y, z      centre of the box bottom, in metres, East-North-Up world of ego_poses.csv

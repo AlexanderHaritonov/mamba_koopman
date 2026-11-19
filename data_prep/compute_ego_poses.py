@@ -4,7 +4,7 @@ The world is East-North-Up in metres, with its origin at the drive's first GPS p
 Positions use the Mercator projection of the devkit's convertOxtsToPose.m,
 but like pykitti only the first position is subtracted, not the whole first pose, so z stays vertical.
 
-    samples/ego_poses.csv
+Output: samples/ego_poses.csv
         drive                    2011_09_26_drive_0001
         frame                    video frame, as in vehicle_poses_velo.csv
         time                     seconds since the drive's first frame, from image_02/timestamps.txt

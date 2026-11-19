@@ -3,8 +3,7 @@
 No smoothing and no velocity: later steps get the raw positions.
 Reads only the contract columns of samples/vehicle_poses_world.csv: drive, track_id, object_type, frame, time, x, y, z, yaw, truncation
 
-Writes no file.
-Run as a script, it prints how many tracks and frames are kept.
+Output: no file. Run as a script, it prints how many tracks and frames are kept.
 
 A track must have no missing frames: tracklets have none, annotators interpolate through occlusions.
 A gap stops the script with an error.

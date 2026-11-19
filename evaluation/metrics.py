@@ -4,6 +4,7 @@ ADE: mean distance between predicted and true position, over all output steps.
 FDE: mean distance at the last output step.
 
 Script: one table per split, with a row per group and predictor.
+Output: printed in the terminal only, no file. Reads samples/samples_<split>.npz and predictions/<predictor>_<split>.npz.
 """
 import argparse
 import math
