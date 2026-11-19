@@ -9,12 +9,12 @@ import os
 import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PREPARED_DIR = os.path.join(PROJECT_DIR, "prepared")
+PREDICTIONS_DIR = os.path.join(PROJECT_DIR, "predictions")
 
 
 def predictions_path(predictor: str, split: str) -> str:
-    """prepared/predictions_<predictor>_<split>.npz"""
-    return os.path.join(PREPARED_DIR, f"predictions_{predictor}_{split}.npz")
+    """predictions/<predictor>_<split>.npz"""
+    return os.path.join(PREDICTIONS_DIR, f"{predictor}_{split}.npz")
 
 
 def check_shapes(mu: np.ndarray, sigma: np.ndarray | None, name: str):
@@ -32,6 +32,7 @@ def check_shapes(mu: np.ndarray, sigma: np.ndarray | None, name: str):
 def save_predictions(filepath: str, mu: np.ndarray, sigma: np.ndarray | None = None):
     """Write one predictions file. Without sigma, the file has only mu."""
     check_shapes(mu, sigma, filepath)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if sigma is None:
         np.savez_compressed(filepath, mu=mu.astype(np.float32))
     else:

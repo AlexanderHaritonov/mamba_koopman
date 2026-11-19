@@ -2,7 +2,7 @@
 
 The bird's-eye view is (x, y, yaw). z is kept as well, for projecting back into the camera and for later use.
 
-    prepared/vehicle_poses_world.csv
+    samples/vehicle_poses_world.csv
         drive, track_id, object_type, frame    as in vehicle_poses_velo.csv
         time         seconds since the drive's first frame
         x, y, z      centre of the box bottom, in metres, East-North-Up world of ego_poses.csv
@@ -33,9 +33,9 @@ import numpy as np
 from compute_ego_poses import EgoPoses, read_ego_poses
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VEHICLE_POSES_VELO_PATH = os.path.join(PROJECT_DIR, "prepared", "vehicle_poses_velo.csv")
-EGO_POSES_PATH = os.path.join(PROJECT_DIR, "prepared", "ego_poses.csv")
-OUT_PATH = os.path.join(PROJECT_DIR, "prepared", "vehicle_poses_world.csv")
+VEHICLE_POSES_VELO_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_velo.csv")
+EGO_POSES_PATH = os.path.join(PROJECT_DIR, "samples", "ego_poses.csv")
+OUT_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
 COLUMNS = ["drive", "track_id", "object_type", "frame", "time", "x", "y", "z", "yaw", "h", "w", "l",
            "occlusion", "truncation", "state", "finished"]
 
@@ -303,9 +303,9 @@ def check_summary(check_values: CheckValues) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--vehicle-poses-velo", default=VEHICLE_POSES_VELO_PATH,
-                        help="step 1 CSV (default: prepared/vehicle_poses_velo.csv)")
-    parser.add_argument("--ego-poses", default=EGO_POSES_PATH, help="step 2 CSV (default: prepared/ego_poses.csv)")
-    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: prepared/vehicle_poses_world.csv)")
+                        help="step 1 CSV (default: samples/vehicle_poses_velo.csv)")
+    parser.add_argument("--ego-poses", default=EGO_POSES_PATH, help="step 2 CSV (default: samples/ego_poses.csv)")
+    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: samples/vehicle_poses_world.csv)")
     args = parser.parse_args()
 
     tracks_by_drive = read_vehicle_poses_velo(args.vehicle_poses_velo)

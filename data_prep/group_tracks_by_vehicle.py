@@ -1,7 +1,7 @@
 """Group the rows of vehicle_poses_world.csv into one track per vehicle, frames in order.
 
 No smoothing and no velocity: later steps get the raw positions.
-Reads only the contract columns of prepared/vehicle_poses_world.csv: drive, track_id, object_type, frame, time, x, y, z, yaw, truncation
+Reads only the contract columns of samples/vehicle_poses_world.csv: drive, track_id, object_type, frame, time, x, y, z, yaw, truncation
 
 Writes no file.
 Run as a script, it prints how many tracks and frames are kept.
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "prepared", "vehicle_poses_world.csv")
+VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
 
 
 @dataclass
@@ -90,7 +90,7 @@ def keep_long_tracks(tracks: list[VehicleTrack], min_frame_count: int) -> list[V
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--vehicle-poses-world", default=VEHICLE_POSES_WORLD_PATH,
-                        help="step 3 CSV (default: prepared/vehicle_poses_world.csv)")
+                        help="step 3 CSV (default: samples/vehicle_poses_world.csv)")
     parser.add_argument("--min-frames", type=int, default=25,
                         help="smallest track length to keep: input steps + output steps of step 5 (default: 25)")
     args = parser.parse_args()

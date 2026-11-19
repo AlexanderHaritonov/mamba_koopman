@@ -27,7 +27,7 @@ If data is good, Capstone should be considered successful even if training does 
     > **Comment** on "drop height":
     > - **Jeremy Cohen** (2026-10-19): maybe reuse it later on without dropping it entirely
 
-    > 2026-11-12: **file contract 1 of 3:** `prepared/vehicle_poses_world.csv`.
+    > 2026-11-12: **file contract 1 of 3:** `samples/vehicle_poses_world.csv`.
     > - Steps 4–6 and training read only `drive, track_id, object_type, frame, time, x, y, z, yaw, truncation`.
     > - Other data sources add rows in the same columns.
     > - Stages exchange data only through the three contract files.
@@ -60,7 +60,7 @@ If data is good, Capstone should be considered successful even if training does 
     > - Save all windows of each split, without thinning.
     > - Build the baselines and metrics before the model
 
-    2026-11-12, **file contract 2 of 3:** samples file, one `.npz` per split, with named arrays:
+    2026-11-12, **file contract 2 of 3:** samples file `samples/samples_<split>.npz`, one per split, with named arrays:
     > - `past` (N, input steps, 3) and `future` (N, output steps, 3): x, y, yaw in the target-car frame.
     > - `anchor_pose` (N, 4): x, y, z, yaw in the world.
     > - `drive`, `track_id`, `object_type`, `frame`.
@@ -136,7 +136,7 @@ Predicted bands. The model predicts 15 steps (frames), for each frame:
 > **Comment** on "Sigma":
 > - **Claude** (2026-11-11): a single Gaussian per step is unimodal — at a crossing ("straight or turn") it gives one wide band between the options. Acceptable at 1.5 s; name it as a known limitation.
 
-> 2026-11-12: **file contract 3 of 3:** predictions file with `mu` and `sigma`, both (N, output steps, 2), in the target-car frame, in the order of the samples file.
+> 2026-11-12: **file contract 3 of 3:** predictions file `predictions/<predictor>_<split>.npz` with `mu` and `sigma`, both (N, output steps, 2), in the target-car frame, in the order of the samples file.
 > - Baselines and the model write the same format.
 > - 2026-11-16: `sigma` is optional. A file without it is drawn as a line.
 > - Evaluation and video do not import the model.

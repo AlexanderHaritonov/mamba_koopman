@@ -2,7 +2,7 @@
 
 Positions are in the Velodyne frame of that video frame (x forward, y left, z up), which moves with the ego car.
 
-    prepared/vehicle_poses_velo.csv
+    samples/vehicle_poses_velo.csv
         drive        2011_09_26_drive_0001
         track_id     position of the tracklet in tracklet_labels.xml (all classes counted), unique per drive
         object_type  Car, Van or Truck
@@ -20,7 +20,7 @@ from tracklets import parse_tracklets
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(PROJECT_DIR, "raw_data")
-OUT_PATH = os.path.join(PROJECT_DIR, "prepared", "vehicle_poses_velo.csv")
+OUT_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_velo.csv")
 VEHICLE_TYPES = ("Car", "Van", "Truck")
 COLUMNS = ["drive", "track_id", "object_type", "frame", "x", "y", "z", "yaw", "h", "w", "l",
            "occlusion", "truncation", "state", "finished"]
@@ -56,7 +56,7 @@ def vehicle_rows(drive, tracklet_path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--raw", default=RAW_DIR, help="drive folders from fetch_kitti_raw.py (default: raw_data)")
-    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: prepared/vehicle_poses_velo.csv)")
+    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: samples/vehicle_poses_velo.csv)")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

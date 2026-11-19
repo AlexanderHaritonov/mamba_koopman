@@ -4,7 +4,7 @@ The world is East-North-Up in metres, with its origin at the drive's first GPS p
 Positions use the Mercator projection of the devkit's convertOxtsToPose.m,
 but like pykitti only the first position is subtracted, not the whole first pose, so z stays vertical.
 
-    prepared/ego_poses.csv
+    samples/ego_poses.csv
         drive                    2011_09_26_drive_0001
         frame                    video frame, as in vehicle_poses_velo.csv
         time                     seconds since the drive's first frame, from image_02/timestamps.txt
@@ -33,7 +33,7 @@ from oxts import OxtsPacket, parse_oxts
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(PROJECT_DIR, "raw_data")
-OUT_PATH = os.path.join(PROJECT_DIR, "prepared", "ego_poses.csv")
+OUT_PATH = os.path.join(PROJECT_DIR, "samples", "ego_poses.csv")
 EARTH_RADIUS = 6378137.0  # metres, as in the devkit's latlonToMercator.m
 
 # Drives that get no ego poses, and so drop out of step 3 onwards. Their raw data and step 1 rows are kept.
@@ -182,7 +182,7 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
 
 @dataclass
 class EgoPose:
-    """One row of prepared/ego_poses.csv."""
+    """One row of samples/ego_poses.csv."""
     time: float  # seconds since the drive's first frame
     T_world_velo: np.ndarray  # 4x4, p_world = T_world_velo · p_velo
     T_world_cam2: np.ndarray  # 4x4, p_world = T_world_cam2 · p_cam2
@@ -192,7 +192,7 @@ EgoPoses = dict[tuple[str, int], EgoPose]  # (drive, frame) -> ego pose
 
 
 def read_ego_poses(filepath) -> EgoPoses:
-    """Load prepared/ego_poses.csv."""
+    """Load samples/ego_poses.csv."""
     ego_poses = {}
     with open(filepath, newline="") as f:
         for row in csv.DictReader(f):
@@ -214,7 +214,7 @@ def read_ego_poses(filepath) -> EgoPoses:
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--raw", default=RAW_DIR, help="drive folders from fetch_kitti_raw.py (default: raw_data)")
-    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: prepared/ego_poses.csv)")
+    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: samples/ego_poses.csv)")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

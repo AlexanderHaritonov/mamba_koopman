@@ -4,12 +4,12 @@ import os
 import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PREPARED_DIR = os.path.join(PROJECT_DIR, "prepared")
+SAMPLES_DIR = os.path.join(PROJECT_DIR, "samples")
 
 
 def samples_path(split: str) -> str:
-    """prepared/samples_<split>.npz"""
-    return os.path.join(PREPARED_DIR, f"samples_{split}.npz")
+    """samples/samples_<split>.npz"""
+    return os.path.join(SAMPLES_DIR, f"samples_{split}.npz")
 
 
 def read_samples(split: str) -> dict[str, np.ndarray]:

@@ -20,8 +20,8 @@ from drive_split import TEST_DRIVES, VALIDATION_DRIVES
 from group_tracks_by_vehicle import VehicleTrack, keep_long_tracks, read_vehicle_tracks
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "prepared", "vehicle_poses_world.csv")
-OUT_DIR = os.path.join(PROJECT_DIR, "prepared")
+VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
+OUT_DIR = os.path.join(PROJECT_DIR, "samples")
 CHECK_MOVING_SPEED = 0.6  # m/s, average speed from first to last frame of a window, only for the printed check
 CHECK_TURN_YAW_CHANGE = math.radians(15)  # smallest yaw change of a turn, only for the printed check
 
@@ -296,10 +296,10 @@ def print_saved_file_checks(samples_by_split: dict[str, list[Sample]], filepaths
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--vehicle-poses-world", default=VEHICLE_POSES_WORLD_PATH,
-                        help="step 3 CSV (default: prepared/vehicle_poses_world.csv)")
+                        help="step 3 CSV (default: samples/vehicle_poses_world.csv)")
     parser.add_argument("--input-steps", type=int, default=10, help="positions in, up to and with t (default: 10)")
     parser.add_argument("--output-steps", type=int, default=15, help="positions out, after t (default: 15)")
-    parser.add_argument("--out-dir", default=OUT_DIR, help="folder for the samples files (default: prepared)")
+    parser.add_argument("--out-dir", default=OUT_DIR, help="folder for the samples files (default: samples)")
     args = parser.parse_args()
 
     tracks = keep_long_tracks(read_vehicle_tracks(args.vehicle_poses_world), args.input_steps + args.output_steps)
