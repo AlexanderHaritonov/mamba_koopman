@@ -11,25 +11,15 @@ A gap stops the script with an error.
 import argparse
 import csv
 import os
-from dataclasses import dataclass
+import sys
 
 import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_DIR)  # for data_model/
+from data_model.data_classes import VehicleTrack
+
 VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
-
-
-@dataclass
-class VehicleTrack:
-    """All frames of one vehicle, in frame order. Arrays have one entry per frame."""
-    drive: str
-    track_id: int
-    object_type: str  # Car, Van or Truck
-    frames: np.ndarray  # (N,) int, video frames, consecutive
-    times: np.ndarray  # (N,) seconds since the drive's first frame
-    positions: np.ndarray  # (N, 3) x, y, z in the world, metres
-    yaws: np.ndarray  # (N,) radians, counter-clockwise from East, unwrapped
-    truncations: np.ndarray  # (N,) int, 0 and 1 mean in the image
 
 
 def read_vehicle_tracks(filepath) -> list[VehicleTrack]:

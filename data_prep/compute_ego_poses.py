@@ -24,14 +24,16 @@ import argparse
 import csv
 import math
 import os
-from dataclasses import dataclass
+import sys
 
 import numpy as np
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from calibration import CamToCamCalibration, RigidCalibration, parse_cam_to_cam_calibration, parse_rigid_calibration
+from data_model.data_classes import EgoPose, EgoPoses
 from oxts import OxtsPacket, parse_oxts
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(PROJECT_DIR, "raw_data")
 OUT_PATH = os.path.join(PROJECT_DIR, "samples", "ego_poses.csv")
 EARTH_RADIUS = 6378137.0  # metres, as in the devkit's latlonToMercator.m
@@ -178,17 +180,6 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
         row["cam2_tz"] = T_world_cam2[2, 3]
         rows.append(row)
     return rows
-
-
-@dataclass
-class EgoPose:
-    """One row of samples/ego_poses.csv."""
-    time: float  # seconds since the drive's first frame
-    T_world_velo: np.ndarray  # 4x4, p_world = T_world_velo · p_velo
-    T_world_cam2: np.ndarray  # 4x4, p_world = T_world_cam2 · p_cam2
-
-
-EgoPoses = dict[tuple[str, int], EgoPose]  # (drive, frame) -> ego pose
 
 
 def read_ego_poses(filepath) -> EgoPoses:

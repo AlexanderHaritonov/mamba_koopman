@@ -13,15 +13,18 @@ Output: samples/samples_<split>.npz, for training, validation and test (drives i
 import argparse
 import math
 import os
+import sys
 from dataclasses import dataclass
 
 import numpy as np
 
-from car_frame import car_frame_to_world, world_to_car_frame
-from drive_split import TEST_DRIVES, VALIDATION_DRIVES
-from group_tracks_by_vehicle import VehicleTrack, keep_long_tracks, read_vehicle_tracks
-
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_DIR)  # for data_model/
+from car_frame import car_frame_to_world, world_to_car_frame
+from data_model.data_classes import Sample, VehicleTrack
+from drive_split import TEST_DRIVES, VALIDATION_DRIVES
+from group_tracks_by_vehicle import keep_long_tracks, read_vehicle_tracks
+
 VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
 OUT_DIR = os.path.join(PROJECT_DIR, "samples")
 CHECK_MOVING_SPEED = 0.6  # m/s, average speed from first to last frame of a window, only for the printed check
@@ -71,20 +74,6 @@ def window_in_car_frame(window: Window) -> tuple[np.ndarray, np.ndarray]:
     past = np.column_stack([past_xy, past_yaws])
     future = np.column_stack([future_xy, future_yaws])
     return past, future
-
-
-@dataclass
-class Sample:
-    """One sample as it goes into the samples file."""
-    past: np.ndarray  # (input_steps, 3) x, y, yaw in the car frame at t
-    future: np.ndarray  # (output_steps, 3) x, y, yaw in the car frame at t
-    anchor_pose: np.ndarray  # (4,) x, y, z, yaw of the car at t, in the world
-    drive: str
-    track_id: int
-    object_type: str  # Car, Van or Truck
-    frame: int  # video frame of t
-    displacement: float  # metres from the first input to the last output position, >= 0
-    yaw_change: float  # radians from the first input to the last output frame, + = left turn
 
 
 def make_sample(window: Window) -> Sample:

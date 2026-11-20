@@ -25,14 +25,17 @@ import argparse
 import csv
 import math
 import os
+import sys
 from dataclasses import dataclass
 from typing import TypedDict
 
 import numpy as np
 
-from compute_ego_poses import EgoPoses, read_ego_poses
-
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_DIR)  # for data_model/
+from compute_ego_poses import read_ego_poses
+from data_model.data_classes import EgoPoses
+
 VEHICLE_POSES_VELO_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_velo.csv")
 EGO_POSES_PATH = os.path.join(PROJECT_DIR, "samples", "ego_poses.csv")
 OUT_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
