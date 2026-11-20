@@ -4,3 +4,4 @@ venv/
 raw_data/
 samples/
 predictions/
+.vscode/

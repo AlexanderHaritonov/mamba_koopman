@@ -6,17 +6,13 @@ Constant velocity: a straight line is fitted by least squares through the last p
 Output: predictions/constant_position_<split>.npz and predictions/constant_velocity_<split>.npz, for training, validation and test.
 """
 import argparse
-import os
-import sys
 
 import numpy as np
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from data_model.data_classes import Predictions
 from data_model.predictions_io import predictions_path, save_predictions
 from data_model.samples_io import read_samples
-from metrics import average_displacement_error, final_displacement_error, sample_groups
+from evaluation.metrics import average_displacement_error, final_displacement_error, sample_groups
 
 
 def predict_constant_position(past: np.ndarray, output_steps: int) -> np.ndarray:

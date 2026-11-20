@@ -9,12 +9,9 @@ Output: printed in the terminal only, no file. Reads samples/samples_<split>.npz
 import argparse
 import math
 import os
-import sys
 
 import numpy as np
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from data_model.data_classes import Samples
 from data_model.predictions_io import load_predictions, predictions_path
 from data_model.samples_io import read_samples

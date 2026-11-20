@@ -13,20 +13,18 @@ Output: samples/samples_<split>.npz, for training, validation and test (drives i
 import argparse
 import math
 import os
-import sys
 from dataclasses import dataclass
 
 import numpy as np
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_DIR)  # for data_model/
-from car_frame import car_frame_to_world, world_to_car_frame
 from data_model.data_classes import Sample, VehicleTrack
 from data_model.poses_io import VEHICLE_POSES_WORLD_PATH, read_vehicle_tracks
 from data_model.samples_io import read_samples, samples_path, save_samples
-from drive_split import TEST_DRIVES, VALIDATION_DRIVES
-from group_tracks_by_vehicle import keep_long_tracks
+from data_prep.car_frame import car_frame_to_world, world_to_car_frame
+from data_prep.drive_split import TEST_DRIVES, VALIDATION_DRIVES
+from data_prep.group_tracks_by_vehicle import keep_long_tracks
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(PROJECT_DIR, "samples")
 CHECK_MOVING_SPEED = 0.6  # m/s, average speed from first to last frame of a window, only for the printed check
 CHECK_TURN_YAW_CHANGE = math.radians(15)  # smallest yaw change of a turn, only for the printed check

@@ -5,11 +5,7 @@ The tracks come from read_vehicle_tracks() in data_model/poses_io.py, one per ve
 Output: no file. Run as a script, it prints how many tracks and frames are kept.
 """
 import argparse
-import os
-import sys
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from data_model.data_classes import VehicleTrack
 from data_model.poses_io import VEHICLE_POSES_WORLD_PATH, read_vehicle_tracks
 

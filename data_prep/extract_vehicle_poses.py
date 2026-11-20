@@ -16,7 +16,7 @@ import argparse
 import csv
 import os
 
-from tracklets import parse_tracklets
+from data_prep.tracklets import parse_tracklets
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(PROJECT_DIR, "raw_data")

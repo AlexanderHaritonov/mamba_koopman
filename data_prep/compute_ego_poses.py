@@ -26,16 +26,14 @@ import argparse
 import csv
 import math
 import os
-import sys
 
 import numpy as np
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_DIR)  # for data_model/
-from calibration import CamToCamCalibration, RigidCalibration, parse_cam_to_cam_calibration, parse_rigid_calibration
 from data_model.poses_io import EGO_POSES_PATH
-from oxts import OxtsPacket, parse_oxts
+from data_prep.calibration import CamToCamCalibration, RigidCalibration, parse_cam_to_cam_calibration, parse_rigid_calibration
+from data_prep.oxts import OxtsPacket, parse_oxts
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(PROJECT_DIR, "raw_data")
 EARTH_RADIUS = 6378137.0  # metres, as in the devkit's latlonToMercator.m
 
