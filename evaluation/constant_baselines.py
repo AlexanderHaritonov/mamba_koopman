@@ -28,24 +28,35 @@ def predict_constant_position(past: np.ndarray, output_steps: int) -> np.ndarray
     return mu
 
 
-def predict_constant_velocity(past: np.ndarray, output_steps: int, velocity_steps: int) -> np.ndarray:
-    """The line through the last velocity_steps positions, continued.
+def least_squares_velocity(positions: np.ndarray) -> np.ndarray:
+    """Slope of the least-squares line through the positions, in metres per step.
 
-    past: (N, input steps, 3), x, y, yaw. Yaw is not used.
-    velocity_steps: 2..input steps, positions up to and with t.
-    Returns mu: (N, output_steps, 2), x, y.
+    positions: (N, fit steps, 2), x, y, in time order. At least 2 steps.
+    Returns velocity: (N, 2), x, y.
     """
-    positions = past[:, -velocity_steps:, :2]  # (N, velocity_steps, 2)
-    steps = np.arange(velocity_steps, dtype=np.float64)  # step number, t is the last one
+    fit_steps = positions.shape[1]
+    steps = np.arange(fit_steps, dtype=np.float64)
     steps_from_mean = steps - steps.mean()
     positions_from_mean = positions - positions.mean(axis=1, keepdims=True)
 
-    # Least-squares slope (metres per step) and the line's position at t, for x and y
-    velocity = np.zeros((past.shape[0], 2))
-    for step_index in range(velocity_steps):
+    velocity = np.zeros((positions.shape[0], 2))
+    for step_index in range(fit_steps):
         velocity += steps_from_mean[step_index] * positions_from_mean[:, step_index]
     velocity /= np.sum(steps_from_mean ** 2)
-    line_at_t = positions.mean(axis=1) + velocity * steps_from_mean[-1]
+    return velocity
+
+
+def predict_constant_velocity(past: np.ndarray, output_steps: int) -> np.ndarray:
+    """The line through all past positions, continued.
+
+    past: (N, fit steps, 3), x, y, yaw. At least 2 steps, the last one is t. Yaw is not used.
+    Returns mu: (N, output_steps, 2), x, y.
+    """
+    positions = past[:, :, :2]  # (N, fit steps, 2)
+    fit_steps = past.shape[1]
+    velocity = least_squares_velocity(positions)
+    # The line goes through the mean position at the middle step; t is (fit_steps - 1) / 2 steps later
+    line_at_t = positions.mean(axis=1) + velocity * (fit_steps - 1) / 2
 
     mu = np.zeros((past.shape[0], output_steps, 2))
     for step in range(output_steps):
@@ -64,7 +75,7 @@ def print_velocity_steps_check(split: str):
     print(f"\nconstant velocity on {split}, with N past positions (t-N+1 .. t) in the line fit, in metres:")
     print(f"{'N past positions':>16}  {'all ADE':>7} {'all FDE':>7}  {'moving ADE':>10} {'moving FDE':>10}")
     for velocity_steps in range(2, past.shape[1] + 1):
-        mu = predict_constant_velocity(past, output_steps, velocity_steps)
+        mu = predict_constant_velocity(past[:, -velocity_steps:], output_steps)
         print(f"{velocity_steps:>16}  "
               f"{average_displacement_error(mu, future_xy):>7.3f} {final_displacement_error(mu, future_xy):>7.3f}  "
               f"{average_displacement_error(mu[moving], future_xy[moving]):>10.3f} "
@@ -87,7 +98,7 @@ def main():
         save_predictions("constant_position", split,
                          Predictions(mu=predict_constant_position(past, output_steps), sigma=None))
         save_predictions("constant_velocity", split,
-                         Predictions(mu=predict_constant_velocity(past, output_steps, args.velocity_steps), sigma=None))
+                         Predictions(mu=predict_constant_velocity(past[:, -args.velocity_steps:], output_steps), sigma=None))
         print(f"{split}: wrote {predictions_path('constant_position', split)} "
               f"and {predictions_path('constant_velocity', split)}")
 
