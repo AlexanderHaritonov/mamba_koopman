@@ -15,8 +15,8 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from data_model.data_classes import Predictions
 from data_model.predictions_io import predictions_path, save_predictions
+from data_model.samples_io import read_samples
 from metrics import average_displacement_error, final_displacement_error, sample_groups
-from samples_io import read_samples
 
 
 def predict_constant_position(past: np.ndarray, output_steps: int) -> np.ndarray:
@@ -60,8 +60,8 @@ def predict_constant_velocity(past: np.ndarray, output_steps: int, velocity_step
 def print_velocity_steps_check(split: str):
     """ADE and FDE of constant velocity for every number of positions in the line fit."""
     samples = read_samples(split)
-    past = samples["past"]
-    future_xy = samples["future"][:, :, :2]
+    past = samples.past
+    future_xy = samples.future[:, :, :2]
     output_steps = future_xy.shape[1]
     groups = sample_groups(samples)
     moving = groups["moving"]
@@ -83,18 +83,17 @@ def main():
 
     for split in ["training", "validation", "test"]:
         samples = read_samples(split)
-        past = samples["past"]
-        output_steps = samples["future"].shape[1]
+        past = samples.past
+        output_steps = samples.future.shape[1]
         if args.velocity_steps < 2 or args.velocity_steps > past.shape[1]:
             raise ValueError(f"--velocity-steps must be 2..{past.shape[1]}")
 
-        constant_position_path = predictions_path("constant_position", split)
-        save_predictions(constant_position_path,
+        save_predictions("constant_position", split,
                          Predictions(mu=predict_constant_position(past, output_steps), sigma=None))
-        constant_velocity_path = predictions_path("constant_velocity", split)
-        save_predictions(constant_velocity_path,
+        save_predictions("constant_velocity", split,
                          Predictions(mu=predict_constant_velocity(past, output_steps, args.velocity_steps), sigma=None))
-        print(f"{split}: wrote {constant_position_path} and {constant_velocity_path}")
+        print(f"{split}: wrote {predictions_path('constant_position', split)} "
+              f"and {predictions_path('constant_velocity', split)}")
 
     print_velocity_steps_check("training")
     print_velocity_steps_check("validation")

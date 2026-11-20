@@ -15,8 +15,9 @@ import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_DIR)  # for data_model/
+from data_model.data_classes import Samples
 from data_model.predictions_io import load_predictions, predictions_path
-from samples_io import read_samples
+from data_model.samples_io import read_samples
 
 # Decides whether car is moving or parking
 MOVING_DISPLACEMENT_THRESHOLD = 1.5 # m, from the first input to the last output position.
@@ -42,14 +43,14 @@ def final_displacement_error(predicted_mu: np.ndarray, actual_future: np.ndarray
     return float(displacement_errors(predicted_mu, actual_future)[:, -1].mean())
 
 
-def sample_groups(samples: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+def sample_groups(samples: Samples) -> dict[str, np.ndarray]:
     """One True/False mask per group: all, parked, moving, turning, labeled, ego.
 
     Turning samples are also moving. Parked = not moving.
     """
-    moving = samples["displacement"] > MOVING_DISPLACEMENT_THRESHOLD
-    turning = moving & (np.abs(samples["yaw_change"]) > TURN_YAW_CHANGE_THRESHOLD)
-    ego = samples["object_type"] == "Ego"
+    moving = samples.displacement > MOVING_DISPLACEMENT_THRESHOLD
+    turning = moving & (np.abs(samples.yaw_change) > TURN_YAW_CHANGE_THRESHOLD)
+    ego = samples.object_type == "Ego"
     return {"all": np.ones(len(moving), dtype=bool),
             "parked": ~moving,
             "moving": moving,
@@ -61,7 +62,7 @@ def sample_groups(samples: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
 def print_metrics_table(split: str, predictors: list[str]):
     """ADE and FDE of each predictor, for each group of one split."""
     samples = read_samples(split)
-    future_xy = samples["future"][:, :, :2]
+    future_xy = samples.future[:, :, :2]
     sample_count = future_xy.shape[0]
     output_steps = future_xy.shape[1]
     groups = sample_groups(samples)
@@ -72,7 +73,7 @@ def print_metrics_table(split: str, predictors: list[str]):
         if not os.path.exists(filepath):
             print(f"no file {os.path.basename(filepath)}, skipped")
             continue
-        predictions = load_predictions(filepath, sample_count, output_steps)
+        predictions = load_predictions(predictor, split, sample_count, output_steps)
         mu_by_predictor[predictor] = predictions.mu
 
     print(f"\n{split}: {sample_count} samples, {output_steps} output steps")

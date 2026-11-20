@@ -31,10 +31,11 @@ def check_shapes(predictions: Predictions, name: str):
         raise ValueError(f"{name}: sigma has values <= 0")
 
 
-def save_predictions(filepath: str, predictions: Predictions):
-    """Write one predictions file. Without sigma, the file has only mu."""
+def save_predictions(predictor: str, split: str, predictions: Predictions):
+    """Write predictions/<predictor>_<split>.npz. Without sigma, the file has only mu."""
+    filepath = predictions_path(predictor, split)
     check_shapes(predictions, filepath)
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    os.makedirs(PREDICTIONS_DIR, exist_ok=True)
     if predictions.sigma is None:
         np.savez_compressed(filepath, mu=predictions.mu.astype(np.float32))
     else:
@@ -42,8 +43,9 @@ def save_predictions(filepath: str, predictions: Predictions):
                             sigma=predictions.sigma.astype(np.float32))
 
 
-def load_predictions(filepath: str, sample_count: int, output_steps: int) -> Predictions:
-    """One predictions file. sigma is None if the file has none."""
+def load_predictions(predictor: str, split: str, sample_count: int, output_steps: int) -> Predictions:
+    """predictions/<predictor>_<split>.npz. sigma is None if the file has none."""
+    filepath = predictions_path(predictor, split)
     with np.load(filepath) as data:
         mu = data["mu"]
         sigma = None

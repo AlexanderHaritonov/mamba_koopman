@@ -22,6 +22,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from car_frame import car_frame_to_world, world_to_car_frame
 from data_model.data_classes import Sample, VehicleTrack
+from data_model.samples_io import read_samples, samples_path, save_samples
 from drive_split import TEST_DRIVES, VALIDATION_DRIVES
 from group_tracks_by_vehicle import keep_long_tracks, read_vehicle_tracks
 
@@ -124,52 +125,10 @@ def median_seconds_per_step(tracks: list[VehicleTrack]) -> float:
     return float(np.median(intervals))
 
 
-def save_samples(samples: list[Sample], filepath: str, seconds_per_step: float):
-    """One samples file, compressed."""
-    if len(samples) == 0:
-        raise ValueError(f"no samples for {filepath}")
-    pasts = []
-    futures = []
-    anchor_poses = []
-    drives = []
-    track_ids = []
-    object_types = []
-    frames = []
-    displacements = []
-    yaw_changes = []
-    for sample in samples:
-        pasts.append(sample.past)
-        futures.append(sample.future)
-        anchor_poses.append(sample.anchor_pose)
-        drives.append(sample.drive)
-        track_ids.append(sample.track_id)
-        object_types.append(sample.object_type)
-        frames.append(sample.frame)
-        displacements.append(sample.displacement)
-        yaw_changes.append(sample.yaw_change)
-    np.savez_compressed(filepath,
-                        past=np.array(pasts, dtype=np.float32),
-                        future=np.array(futures, dtype=np.float32),
-                        anchor_pose=np.array(anchor_poses, dtype=np.float64),
-                        drive=np.array(drives),
-                        track_id=np.array(track_ids, dtype=np.int64),
-                        object_type=np.array(object_types),
-                        frame=np.array(frames, dtype=np.int64),
-                        displacement=np.array(displacements, dtype=np.float32),
-                        yaw_change=np.array(yaw_changes, dtype=np.float32),
-                        seconds_per_step=np.array(seconds_per_step, dtype=np.float64))
-
-
-def save_all_splits(samples_by_split: dict[str, list[Sample]], out_dir: str,
-                    seconds_per_step: float) -> dict[str, str]:
-    """One file per split: samples_training.npz, samples_validation.npz, samples_test.npz. Returns their paths."""
-    os.makedirs(out_dir, exist_ok=True)
-    filepaths_by_split = {}
+def save_all_splits(samples_by_split: dict[str, list[Sample]], out_dir: str, seconds_per_step: float):
+    """One file per split: samples_training.npz, samples_validation.npz, samples_test.npz."""
     for split in samples_by_split:
-        filepath = os.path.join(out_dir, f"samples_{split}.npz")
-        save_samples(samples_by_split[split], filepath, seconds_per_step)
-        filepaths_by_split[split] = filepath
-    return filepaths_by_split
+        save_samples(split, samples_by_split[split], seconds_per_step, out_dir)
 
 
 def print_window_checks(tracks: list[VehicleTrack], windows: list[Window]):
@@ -268,20 +227,17 @@ def print_split_checks(samples_by_split: dict[str, list[Sample]]):
             print(f"WARNING: {drive} is listed in drive_split.py but has no samples")
 
 
-def print_saved_file_checks(samples_by_split: dict[str, list[Sample]], filepaths_by_split: dict[str, str]):
+def print_saved_file_checks(samples_by_split: dict[str, list[Sample]], out_dir: str):
     """Read every file back: every array has one row per sample, and the size on disk."""
-    per_sample_arrays = ["past", "future", "anchor_pose", "drive", "track_id", "object_type", "frame",
-                         "displacement", "yaw_change"]
-    for split in filepaths_by_split:
-        filepath = filepaths_by_split[split]
-        with np.load(filepath) as data:
-            sample_count = len(samples_by_split[split])
-            for name in per_sample_arrays:
-                if data[name].shape[0] != sample_count:
-                    raise ValueError(f"{filepath}: {name} has {data[name].shape[0]} rows, expected {sample_count}")
-            print(f"{os.path.basename(filepath)}: {sample_count} samples, past {data['past'].shape}, "
-                  f"future {data['future'].shape}, seconds_per_step {float(data['seconds_per_step']):.4f}, "
-                  f"{os.path.getsize(filepath) / 1e6:.1f} MB")
+    for split in samples_by_split:
+        filepath = samples_path(split, out_dir)
+        saved = read_samples(split, out_dir)  # checks that all arrays have as many rows as past
+        sample_count = len(samples_by_split[split])
+        if saved.past.shape[0] != sample_count:
+            raise ValueError(f"{filepath}: past has {saved.past.shape[0]} rows, expected {sample_count}")
+        print(f"{os.path.basename(filepath)}: {sample_count} samples, past {saved.past.shape}, "
+              f"future {saved.future.shape}, seconds_per_step {saved.seconds_per_step:.4f}, "
+              f"{os.path.getsize(filepath) / 1e6:.1f} MB")
 
 
 def main():
@@ -301,13 +257,13 @@ def main():
     for window in windows:
         samples.append(make_sample(window))
     samples_by_split = split_samples(samples)
-    filepaths_by_split = save_all_splits(samples_by_split, args.out_dir, median_seconds_per_step(tracks))
+    save_all_splits(samples_by_split, args.out_dir, median_seconds_per_step(tracks))
 
     print_window_checks(tracks, windows)
     print_car_frame_checks(windows)
     print_sample_checks(windows, samples)
     print_split_checks(samples_by_split)
-    print_saved_file_checks(samples_by_split, filepaths_by_split)
+    print_saved_file_checks(samples_by_split, args.out_dir)
 
 
 if __name__ == "__main__":
