@@ -9,10 +9,13 @@ Output: printed in the terminal only, no file. Reads samples/samples_<split>.npz
 import argparse
 import math
 import os
+import sys
 
 import numpy as np
 
-from predictions_io import load_predictions, predictions_path
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_DIR)  # for data_model/
+from data_model.predictions_io import load_predictions, predictions_path
 from samples_io import read_samples
 
 # Decides whether car is moving or parking
@@ -69,8 +72,8 @@ def print_metrics_table(split: str, predictors: list[str]):
         if not os.path.exists(filepath):
             print(f"no file {os.path.basename(filepath)}, skipped")
             continue
-        mu, sigma = load_predictions(filepath, sample_count, output_steps)
-        mu_by_predictor[predictor] = mu
+        predictions = load_predictions(filepath, sample_count, output_steps)
+        mu_by_predictor[predictor] = predictions.mu
 
     print(f"\n{split}: {sample_count} samples, {output_steps} output steps")
     print(f"{'group':<8} {'samples':>7}  {'predictor':<18} {'ADE m':>6} {'FDE m':>6}")

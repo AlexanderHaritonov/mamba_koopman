@@ -6,11 +6,16 @@ Constant velocity: a straight line is fitted by least squares through the last p
 Output: predictions/constant_position_<split>.npz and predictions/constant_velocity_<split>.npz, for training, validation and test.
 """
 import argparse
+import os
+import sys
 
 import numpy as np
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_DIR)  # for data_model/
+from data_model.data_classes import Predictions
+from data_model.predictions_io import predictions_path, save_predictions
 from metrics import average_displacement_error, final_displacement_error, sample_groups
-from predictions_io import predictions_path, save_predictions
 from samples_io import read_samples
 
 
@@ -84,9 +89,11 @@ def main():
             raise ValueError(f"--velocity-steps must be 2..{past.shape[1]}")
 
         constant_position_path = predictions_path("constant_position", split)
-        save_predictions(constant_position_path, predict_constant_position(past, output_steps))
+        save_predictions(constant_position_path,
+                         Predictions(mu=predict_constant_position(past, output_steps), sigma=None))
         constant_velocity_path = predictions_path("constant_velocity", split)
-        save_predictions(constant_velocity_path, predict_constant_velocity(past, output_steps, args.velocity_steps))
+        save_predictions(constant_velocity_path,
+                         Predictions(mu=predict_constant_velocity(past, output_steps, args.velocity_steps), sigma=None))
         print(f"{split}: wrote {constant_position_path} and {constant_velocity_path}")
 
     print_velocity_steps_check("training")
