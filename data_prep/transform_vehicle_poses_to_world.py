@@ -33,12 +33,10 @@ import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_DIR)  # for data_model/
-from compute_ego_poses import read_ego_poses
 from data_model.data_classes import EgoPoses
+from data_model.poses_io import EGO_POSES_PATH, VEHICLE_POSES_WORLD_PATH, read_ego_poses
 
 VEHICLE_POSES_VELO_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_velo.csv")
-EGO_POSES_PATH = os.path.join(PROJECT_DIR, "samples", "ego_poses.csv")
-OUT_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
 COLUMNS = ["drive", "track_id", "object_type", "frame", "time", "x", "y", "z", "yaw", "h", "w", "l",
            "occlusion", "truncation", "state", "finished"]
 
@@ -308,7 +306,8 @@ def main():
     parser.add_argument("--vehicle-poses-velo", default=VEHICLE_POSES_VELO_PATH,
                         help="step 1 CSV (default: samples/vehicle_poses_velo.csv)")
     parser.add_argument("--ego-poses", default=EGO_POSES_PATH, help="step 2 CSV (default: samples/ego_poses.csv)")
-    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: samples/vehicle_poses_world.csv)")
+    parser.add_argument("--out", default=VEHICLE_POSES_WORLD_PATH,
+                        help="CSV to write (default: samples/vehicle_poses_world.csv)")
     args = parser.parse_args()
 
     tracks_by_drive = read_vehicle_poses_velo(args.vehicle_poses_velo)

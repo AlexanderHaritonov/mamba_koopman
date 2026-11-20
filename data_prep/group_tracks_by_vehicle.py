@@ -1,70 +1,17 @@
-"""Group the rows of vehicle_poses_world.csv into one track per vehicle, frames in order.
+"""Keep the vehicle tracks that are long enough for one sample.
 
-No smoothing and no velocity: later steps get the raw positions.
-Reads only the contract columns of samples/vehicle_poses_world.csv: drive, track_id, object_type, frame, time, x, y, z, yaw, truncation
+The tracks come from read_vehicle_tracks() in data_model/poses_io.py, one per vehicle, frames in order.
 
 Output: no file. Run as a script, it prints how many tracks and frames are kept.
-
-A track must have no missing frames: tracklets have none, annotators interpolate through occlusions.
-A gap stops the script with an error.
 """
 import argparse
-import csv
 import os
 import sys
-
-import numpy as np
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from data_model.data_classes import VehicleTrack
-
-VEHICLE_POSES_WORLD_PATH = os.path.join(PROJECT_DIR, "samples", "vehicle_poses_world.csv")
-
-
-def read_vehicle_tracks(filepath) -> list[VehicleTrack]:
-    """All tracks of vehicle_poses_world.csv, sorted by drive and track_id."""
-    rows_by_track = {}  # (drive, track_id) -> rows of the track
-    with open(filepath, newline="") as f:
-        for row in csv.DictReader(f):
-            key = (row["drive"], int(row["track_id"]))
-            if key not in rows_by_track:
-                rows_by_track[key] = []
-            rows_by_track[key].append(row)
-
-    tracks = []
-    for key in sorted(rows_by_track):
-        drive, track_id = key
-        rows = sorted(rows_by_track[key], key=lambda row: int(row["frame"]))
-
-        frames = []
-        times = []
-        positions = []
-        yaws = []
-        truncations = []
-        for row in rows:
-            if row["object_type"] != rows[0]["object_type"]:
-                raise ValueError(f"{drive} track {track_id}: object_type changes inside the track")
-            frames.append(int(row["frame"]))
-            times.append(float(row["time"]))
-            positions.append([float(row["x"]), float(row["y"]), float(row["z"])])
-            yaws.append(float(row["yaw"]))
-            truncations.append(int(row["truncation"]))
-
-        for frame_index in range(1, len(frames)):
-            if frames[frame_index] != frames[frame_index - 1] + 1:
-                raise ValueError(f"{drive} track {track_id}: frame {frames[frame_index - 1]} "
-                                 f"is followed by frame {frames[frame_index]}")
-
-        tracks.append(VehicleTrack(drive=drive,
-                                   track_id=track_id,
-                                   object_type=rows[0]["object_type"],
-                                   frames=np.array(frames),
-                                   times=np.array(times),
-                                   positions=np.array(positions),
-                                   yaws=np.array(yaws),
-                                   truncations=np.array(truncations)))
-    return tracks
+from data_model.poses_io import VEHICLE_POSES_WORLD_PATH, read_vehicle_tracks
 
 
 def keep_long_tracks(tracks: list[VehicleTrack], min_frame_count: int) -> list[VehicleTrack]:

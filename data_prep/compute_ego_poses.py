@@ -14,6 +14,8 @@ Output: samples/ego_poses.csv
         cam2_r11 .. cam2_r33,    T_world_cam2 likewise. Camera 2 is the rectified image_02 camera:
         cam2_tx, cam2_ty, cam2_tz    x right, y down, z forward
 
+Read back with read_ego_poses() in data_model/poses_io.py.
+
 Projecting a world point into image_02: p_cam2 = R^T · (p_world - t), then pixel = K · p_cam2 / z_cam2
 with K = P_rect_02[:, :3].
 Not the full P_rect_02: its last column is the offset from camera 0 to camera 2, which T_world_cam2 already contains.
@@ -31,11 +33,10 @@ import numpy as np
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_DIR)  # for data_model/
 from calibration import CamToCamCalibration, RigidCalibration, parse_cam_to_cam_calibration, parse_rigid_calibration
-from data_model.data_classes import EgoPose, EgoPoses
+from data_model.poses_io import EGO_POSES_PATH
 from oxts import OxtsPacket, parse_oxts
 
 RAW_DIR = os.path.join(PROJECT_DIR, "raw_data")
-OUT_PATH = os.path.join(PROJECT_DIR, "samples", "ego_poses.csv")
 EARTH_RADIUS = 6378137.0  # metres, as in the devkit's latlonToMercator.m
 
 # Drives that get no ego poses, and so drop out of step 3 onwards. Their raw data and step 1 rows are kept.
@@ -182,30 +183,10 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
     return rows
 
 
-def read_ego_poses(filepath) -> EgoPoses:
-    """Load samples/ego_poses.csv."""
-    ego_poses = {}
-    with open(filepath, newline="") as f:
-        for row in csv.DictReader(f):
-            velo_rotation = np.array([[float(row["velo_r11"]), float(row["velo_r12"]), float(row["velo_r13"])],
-                                      [float(row["velo_r21"]), float(row["velo_r22"]), float(row["velo_r23"])],
-                                      [float(row["velo_r31"]), float(row["velo_r32"]), float(row["velo_r33"])]])
-            velo_translation = np.array([float(row["velo_tx"]), float(row["velo_ty"]), float(row["velo_tz"])])
-            cam2_rotation = np.array([[float(row["cam2_r11"]), float(row["cam2_r12"]), float(row["cam2_r13"])],
-                                      [float(row["cam2_r21"]), float(row["cam2_r22"]), float(row["cam2_r23"])],
-                                      [float(row["cam2_r31"]), float(row["cam2_r32"]), float(row["cam2_r33"])]])
-            cam2_translation = np.array([float(row["cam2_tx"]), float(row["cam2_ty"]), float(row["cam2_tz"])])
-            ego_poses[(row["drive"], int(row["frame"]))] = EgoPose(
-                time=float(row["time"]),
-                T_world_velo=make_4_4_homogenous_transform(velo_rotation, velo_translation),
-                T_world_cam2=make_4_4_homogenous_transform(cam2_rotation, cam2_translation))
-    return ego_poses
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--raw", default=RAW_DIR, help="drive folders from fetch_kitti_raw.py (default: raw_data)")
-    parser.add_argument("--out", default=OUT_PATH, help="CSV to write (default: samples/ego_poses.csv)")
+    parser.add_argument("--out", default=EGO_POSES_PATH, help="CSV to write (default: samples/ego_poses.csv)")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
