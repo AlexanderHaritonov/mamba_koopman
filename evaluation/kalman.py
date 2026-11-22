@@ -1,11 +1,22 @@
 from dataclasses import dataclass
 import numpy as np
 
+from data_model.data_classes import Prediction
+
 class Kalman:
-    def __init__(self, measurement_variance: float):
+    def __init__(self, measurement_variance: float, process_variance: float):
         self.measurement_noise = np.array(
             [[measurement_variance, 0       ],
             [0,        measurement_variance]])
+
+        # random acceleration: velocity variance grows by q per step
+        q = process_variance
+        self.process_noise = np.array([
+            [q / 3, 0,     q / 2, 0    ],
+            [0,     q / 3, 0,     q / 2],
+            [q / 2, 0,     q,     0    ],
+            [0,     q / 2, 0,     q    ],
+        ])
 
     @dataclass
     class Estimate:
@@ -37,7 +48,7 @@ class Kalman:
 
     def predict(self, estimate: Estimate) -> Estimate:
         new_state = self.motion_model @ estimate.state
-        new_covariance = self.motion_model @ estimate.covariance @ self.motion_model.T
+        new_covariance = self.motion_model @ estimate.covariance @ self.motion_model.T + self.process_noise
 
         return Kalman.Estimate(new_state, new_covariance)
 
@@ -63,6 +74,47 @@ class Kalman:
         new_covariance = (np.identity(4) - K @ self.measurement_model) @ prediction.covariance
 
         return Kalman.Estimate(new_state, new_covariance)
+
+
+def predict_kalman(past: np.ndarray, output_steps: int,
+                   measurement_variance: float, process_variance: float) -> Prediction:
+    """Filter the past positions of one sample, then predict output_steps steps.
+
+    past: (input steps, 3), x, y, yaw. At least 2 steps. Yaw is not used.
+    Returns Prediction: mu and sigma (output_steps, 2), x, y.
+    """
+    kalman = Kalman(measurement_variance, process_variance)
+    positions = past[:, :2].astype(np.float64)  # (input steps, 2)
+    input_steps = past.shape[0]
+
+    # start from the first two positions
+    state = np.zeros(4)
+    state[0:2] = positions[1]
+    state[2:4] = positions[1] - positions[0]
+    r = measurement_variance
+    covariance = np.array([
+        [r, 0, r,     0    ],
+        [0, r, 0,     r    ],
+        [r, 0, 2 * r, 0    ],
+        [0, r, 0,     2 * r],
+    ])
+    estimate = Kalman.Estimate(state, covariance)
+
+    for step in range(2, input_steps):
+        predicted_estimate = kalman.predict(estimate)
+        estimate = kalman.update(predicted_estimate, positions[step])
+
+    mu = np.zeros((output_steps, 2))
+    sigma = np.zeros((output_steps, 2))
+    for step in range(output_steps):
+        estimate = kalman.predict(estimate)
+        mu[step] = estimate.position
+        # sigma includes the measurement noise of the future labels
+        sigma[step, 0] = np.sqrt(estimate.covariance[0, 0] + measurement_variance)
+        sigma[step, 1] = np.sqrt(estimate.covariance[1, 1] + measurement_variance)
+    return Prediction(mu=mu, sigma=sigma)
+
+
 '''
     def predict(self, estimate):
         posx = estimate.position[0] + estimate.velocity[0]

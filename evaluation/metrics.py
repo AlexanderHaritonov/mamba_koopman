@@ -2,6 +2,7 @@
 
 ADE: mean distance between predicted and true position, over all output steps.
 FDE: mean distance at the last output step.
+NLL and 1σ coverage: only for predictors with sigma, "-" for the others.
 
 Script: one table per split, with a row per group and predictor.
 Output: printed in the terminal only, no file. Reads samples/samples_<split>.npz and predictions/<predictor>_<split>.npz.
@@ -39,6 +40,21 @@ def average_displacement_error(predicted_mu: np.ndarray, actual_future: np.ndarr
 def final_displacement_error(predicted_mu: np.ndarray, actual_future: np.ndarray) -> float:
     return float(displacement_errors(predicted_mu, actual_future)[:, -1].mean())
 
+# Gaussian NLL of one position, x and y summed, averaged over samples and (output) steps. Lower is better.
+def negative_log_likelihood(predicted_mu: np.ndarray, predicted_sigma: np.ndarray,
+                            actual_future: np.ndarray) -> float:
+    """predicted_mu, predicted_sigma, actual_future: (N, output steps, 2), x, y."""
+    error_in_sigmas = (actual_future - predicted_mu) / predicted_sigma
+    nll_per_axis = 0.5 * np.log(2 * np.pi) + np.log(predicted_sigma) + 0.5 * error_in_sigmas ** 2
+    return float(nll_per_axis.sum(axis=2).mean())
+
+# Share of x and y errors smaller than sigma. 0.683 if sigma is right.
+def one_sigma_coverage(predicted_mu: np.ndarray, predicted_sigma: np.ndarray,
+                       actual_future: np.ndarray) -> float:
+    """predicted_mu, predicted_sigma, actual_future: (N, output steps, 2), x, y."""
+    inside = np.abs(actual_future - predicted_mu) < predicted_sigma
+    return float(inside.mean())
+
 
 def sample_groups(samples: Samples) -> dict[str, np.ndarray]:
     """One True/False mask per group: all, parked, moving, turning, labeled, ego.
@@ -64,32 +80,41 @@ def print_metrics_table(split: str, predictors: list[str]):
     output_steps = future_xy.shape[1]
     groups = sample_groups(samples)
 
-    mu_by_predictor = {}
+    predictions_by_predictor = {}
     for predictor in predictors:
         filepath = predictions_path(predictor, split)
         if not os.path.exists(filepath):
             print(f"no file {os.path.basename(filepath)}, skipped")
             continue
-        predictions = load_predictions(predictor, split, sample_count, output_steps)
-        mu_by_predictor[predictor] = predictions.mu
+        predictions_by_predictor[predictor] = load_predictions(predictor, split, sample_count, output_steps)
 
     print(f"\n{split}: {sample_count} samples, {output_steps} output steps")
-    print(f"{'group':<8} {'samples':>7}  {'predictor':<18} {'ADE m':>6} {'FDE m':>6}")
+    print(f"{'group':<8} {'samples':>7}  {'predictor':<18} {'ADE m':>6} {'FDE m':>6} {'NLL':>6} {'cover':>6}")
     for group in groups:
         mask = groups[group]
         group_count = int(mask.sum())
         if group_count == 0:
             print(f"{group:<8} {0:>7}")
             continue
-        for predictor in mu_by_predictor:
-            mu = mu_by_predictor[predictor]
+        for predictor in predictions_by_predictor:
+            mu = predictions_by_predictor[predictor].mu
+            sigma = predictions_by_predictor[predictor].sigma
             ade = average_displacement_error(mu[mask], future_xy[mask])
             fde = final_displacement_error(mu[mask], future_xy[mask])
-            print(f"{group:<8} {group_count:>7}  {predictor:<18} {ade:>6.2f} {fde:>6.2f}")
+            if sigma is None:
+                nll_text = "-"
+                coverage_text = "-"
+            else:
+                nll = negative_log_likelihood(mu[mask], sigma[mask], future_xy[mask])
+                coverage = one_sigma_coverage(mu[mask], sigma[mask], future_xy[mask])
+                nll_text = f"{nll:.2f}"
+                coverage_text = f"{coverage:.2f}"
+            print(f"{group:<8} {group_count:>7}  {predictor:<18} {ade:>6.2f} {fde:>6.2f} "
+                  f"{nll_text:>6} {coverage_text:>6}")
 
 
 def main():
-    default_predictors = ["constant_position", "constant_velocity"]
+    default_predictors = ["constant_position", "constant_velocity", "kalman"]
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--splits", nargs="+", default=["validation", "test"],
                         help="splits to score (default: validation test)")

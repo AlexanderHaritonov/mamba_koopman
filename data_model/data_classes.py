@@ -3,7 +3,7 @@
 samples/ego_poses.csv                   EgoPose, one per drive and frame
 samples/vehicle_poses_world.csv         VehicleTrack, one per vehicle (file contract 1)
 samples/samples_<split>.npz             Sample when writing, Samples when reading (file contract 2)
-predictions/<predictor>_<split>.npz     Predictions (file contract 3)
+predictions/<predictor>_<split>.npz     Prediction per sample when predicting, Predictions for the file (file contract 3)
 """
 from dataclasses import dataclass
 
@@ -61,6 +61,13 @@ class Samples:
     displacement: np.ndarray  # (N,)
     yaw_change: np.ndarray  # (N,)
     seconds_per_step: float  # median time between frames, the same for all samples
+
+
+@dataclass
+class Prediction:
+    """One sample, as a predictor makes it."""
+    mu: np.ndarray  # (output_steps, 2) predicted x, y in the car frame at t
+    sigma: np.ndarray | None  # same shape as mu, spread of x and y, > 0. None: drawn as a line
 
 
 @dataclass
