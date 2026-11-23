@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from data_model.data_classes import Prediction
+from evaluation.constant_baselines import least_squares_velocity
 
 class Kalman:
     def __init__(self, measurement_variance: float, process_variance: float):
@@ -76,16 +77,25 @@ class Kalman:
         return Kalman.Estimate(new_state, new_covariance)
 
 
-def predict_kalman(past: np.ndarray, output_steps: int,
-                   measurement_variance: float, process_variance: float) -> Prediction:
+def predict_kalman(past: np.ndarray,
+                   output_steps: int,
+                   measurement_variance: float,
+                   process_variance: float,
+                   speed_noise_factor: float = 0.0) -> Prediction:
     """Filter the past positions of one sample, then predict output_steps steps.
 
     past: (input steps, 3), x, y, yaw. At least 2 steps. Yaw is not used.
+    Process variance of this sample: process_variance + speed_noise_factor * speed², speed in m per step, from the line through all past positions.
     Returns Prediction: mu and sigma (output_steps, 2), x, y.
     """
-    kalman = Kalman(measurement_variance, process_variance)
     positions = past[:, :2].astype(np.float64)  # (input steps, 2)
     input_steps = past.shape[0]
+
+    # faster cars get more process noise, so wider bands
+    velocity = least_squares_velocity(positions[np.newaxis])[0]
+    speed_squared = velocity[0] ** 2 + velocity[1] ** 2
+    sample_process_variance = process_variance + speed_noise_factor * speed_squared
+    kalman = Kalman(measurement_variance, sample_process_variance)
 
     # start from the first two positions
     state = np.zeros(4)
