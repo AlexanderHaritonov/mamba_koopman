@@ -14,7 +14,7 @@ from data_model.samples_io import read_samples
 from evaluation.kalman import predict_kalman
 
 # obtained from best NLL (negative log-likelihood) on training set, from evaluation/kalman_sweep.py
-MEASUREMENT_VARIANCE = 0.001  # m²
+MEASUREMENT_VARIANCE = 0.0001  # m²
 PROCESS_VARIANCE = 0.0003  # m² per step³
 
 
