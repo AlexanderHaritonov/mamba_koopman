@@ -84,8 +84,8 @@ def print_velocity_steps_check(split: str):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--velocity-steps", type=int, default=4,
-                        help="positions in the line fit of constant velocity, up to and with t (default: 4)")
+    parser.add_argument("--velocity-steps", type=int, default=3,
+                        help="positions in the line fit of constant velocity, up to and with t (default: 3)")
     args = parser.parse_args()
 
     for split in ["training", "validation", "test"]:
