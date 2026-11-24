@@ -7,6 +7,7 @@ So t runs from the track's first frame + input_steps - 1 to its last frame - out
 
 Past and future positions are re-centred on the car's pose at t (car_frame.py): x, y, yaw, facing +x.
 Each sample also keeps where it comes from (drive, track, type, frame of t, world pose at t) and how far the car moves and turns over the whole window.
+Label errors are cut out of the tracks first (split_at_label_errors() in group_tracks_by_vehicle.py).
 
 Output: samples/samples_<split>.npz, for training, validation and test (drives in drive_split.py). Reads samples/vehicle_poses_world.csv.
 """
@@ -22,7 +23,7 @@ from data_model.poses_io import VEHICLE_POSES_WORLD_PATH, read_vehicle_tracks
 from data_model.samples_io import read_samples, samples_path, save_samples
 from data_prep.car_frame import car_frame_to_world, world_to_car_frame
 from data_prep.drive_split import TEST_DRIVES, VALIDATION_DRIVES
-from data_prep.group_tracks_by_vehicle import keep_long_tracks
+from data_prep.group_tracks_by_vehicle import keep_long_tracks, split_at_label_errors
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(PROJECT_DIR, "samples")
@@ -247,7 +248,8 @@ def main():
     parser.add_argument("--out-dir", default=OUT_DIR, help="folder for the samples files (default: samples)")
     args = parser.parse_args()
 
-    tracks = keep_long_tracks(read_vehicle_tracks(args.vehicle_poses_world), args.input_steps + args.output_steps)
+    split_tracks = split_at_label_errors(read_vehicle_tracks(args.vehicle_poses_world))
+    tracks = keep_long_tracks(split_tracks, args.input_steps + args.output_steps)
     windows = []
     for track in tracks:
         windows.extend(cut_windows(track, args.input_steps, args.output_steps))
