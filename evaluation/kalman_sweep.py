@@ -17,9 +17,9 @@ from evaluation.kalman import predict_kalman
 from evaluation.metrics import (average_displacement_error, final_displacement_error,
                                 negative_log_likelihood, one_sigma_coverage)
 
-# around the best (r, q) of the earlier wide sweep (r 0.001–1, q 0–0.1), so the run takes about 20 min
-DEFAULT_MEASUREMENT_VARIANCES = [0.0001, 0.0003, 0.001, 0.003]
-DEFAULT_PROCESS_VARIANCES = [0.0, 1e-5, 3e-5, 1e-4, 3e-4]
+# around the best (r, q) of the r, q sweep on the cleaned data (r 1e-5–0.1, q 0–0.01), so the run takes about 20 min
+DEFAULT_MEASUREMENT_VARIANCES = [3e-5, 1e-4, 3e-4, 1e-3]
+DEFAULT_PROCESS_VARIANCES = [0.0, 3e-5, 1e-4, 3e-4, 1e-3]
 DEFAULT_SPEED_NOISE_FACTORS = [0.0, 0.0003, 0.001, 0.003, 0.01, 0.03]
 
 
