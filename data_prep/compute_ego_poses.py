@@ -4,12 +4,16 @@ The world is East-North-Up in metres, with its origin at the drive's first GPS p
 Positions use the Mercator projection of the devkit's convertOxtsToPose.m,
 but like pykitti only the first position is subtracted, not the whole first pose, so z stays vertical.
 
+The OXTS packet of a frame is recorded at oxts_time, up to ~35 ms before or after the camera time of the frame.
+The labels belong to the camera time, so the pose is moved to it with the packet's own velocity (ve, vn, vu) and yaw rate (wu), over time - oxts_time. Roll and pitch are kept.
+
 Output: samples/ego_poses.csv
         drive                    2011_09_26_drive_0001
         frame                    video frame, as in vehicle_poses_velo.csv
         time                     seconds since the drive's first frame, from image_02/timestamps.txt
-                                 (frames are ~0.1035 s apart; the OXTS clock jitters, 0.06 to 0.14 s)
-        velo_r11 .. velo_r33,    T_world_velo, row by row, then its translation:
+                                 (frames are ~0.1035 s apart)
+        oxts_time                time of the OXTS packet, from oxts/timestamps.txt, on the same clock as time
+        velo_r11 .. velo_r33,    T_world_velo at time, row by row, then its translation:
         velo_tx, velo_ty, velo_tz    p_world = R · p_velo + t
         cam2_r11 .. cam2_r33,    T_world_cam2 likewise. Camera 2 is the rectified image_02 camera:
         cam2_tx, cam2_ty, cam2_tz    x right, y down, z forward
@@ -42,7 +46,7 @@ EXCLUDED_DRIVES = {
     "2011_09_26_drive_0093": "GPS position jumps up to 9.8 m between frames (accuracy ~21 m): needs odometry (2b)",
 }
 
-COLUMNS = ["drive", "frame", "time",
+COLUMNS = ["drive", "frame", "time", "oxts_time",
            "velo_r11", "velo_r12", "velo_r13", "velo_r21", "velo_r22", "velo_r23", "velo_r31", "velo_r32", "velo_r33",
            "velo_tx", "velo_ty", "velo_tz",
            "cam2_r11", "cam2_r12", "cam2_r13", "cam2_r21", "cam2_r22", "cam2_r23", "cam2_r31", "cam2_r32", "cam2_r33",
@@ -81,21 +85,32 @@ def make_4_4_homogenous_transform(rotation: np.ndarray, translation: np.ndarray)
     return transform
 
 
-def imu_poses_in_world(packets: list[OxtsPacket]) -> list[np.ndarray]:
-    """T_world_imu per frame: a list of 4x4 homogeneous transforms, one per packet, p_world = T_world_imu · p_imu.
+def imu_poses_in_world(packets: list[OxtsPacket], time_shifts: list[float]) -> list[np.ndarray]:
+    """T_world_imu per frame, at the camera time: a list of 4x4 homogeneous transforms, one per packet,
+    p_world = T_world_imu · p_imu.
     The IMU frame is x forward, y left, z up
-    (the comment in  convertOxtsToPose.m says y right, z down, but its math gives y left, z up)."""
+    (the comment in  convertOxtsToPose.m says y right, z down, but its math gives y left, z up).
+
+    time_shifts: camera time minus OXTS time, per packet, in seconds.
+    """
     scale = math.cos(packets[0].lat * math.pi / 180)  # latToScale.m, from the first frame, its 1 on equator, for Karlsruhe ~ 0.656
     origin = None
     poses = []
-    for packet in packets:
+    for frame in range(len(packets)):
+        packet = packets[frame]
         # latlonToMercator.m: x east, y north, in metres
         imu_position = np.array([scale * packet.lon * math.pi * EARTH_RADIUS / 180,
                                  scale * EARTH_RADIUS * math.log(math.tan((90 + packet.lat) * math.pi / 360)),
                                  packet.alt])
         if origin is None:
-            origin = imu_position
-        imu_rotation = rotation_z(packet.yaw) @ rotation_y(packet.pitch) @ rotation_x(packet.roll)
+            origin = imu_position  # the first GPS position, not moved
+
+        # move to the camera time with the packet's own velocity and yaw rate
+        time_shift = time_shifts[frame]
+        imu_position = imu_position + np.array([packet.ve, packet.vn, packet.vu]) * time_shift
+        yaw = packet.yaw + packet.wu * time_shift
+
+        imu_rotation = rotation_z(yaw) @ rotation_y(packet.pitch) @ rotation_x(packet.roll)
         poses.append(make_4_4_homogenous_transform(imu_rotation, imu_position - origin))
     return poses
 
@@ -114,21 +129,40 @@ def cam2_from_velo(velo_to_cam: RigidCalibration, cam_to_cam: CamToCamCalibratio
     return T_cam2_rect0 @ T_rect0_cam0 @ T_cam0_velo
 
 
-def frame_times(timestamps_path: str) -> list[float]:
-    """Seconds since the first frame, one per line like 2011-09-26 13:02:25.964389445.
+def seconds_of_day(timestamps_path: str) -> list[float]:
+    """Clock time in seconds, one per line like 2011-09-26 13:02:25.964389445.
     Only the clock time is used: no drive crosses midnight."""
-    seconds_of_day = []
+    seconds = []
     with open(timestamps_path) as f:
         for line in f:
             if not line.strip():
                 continue
             clock = line.split()[1]
-            hours, minutes, seconds = clock.split(":")
-            seconds_of_day.append(int(hours) * 3600 + int(minutes) * 60 + float(seconds))
-    times = []
-    for second in seconds_of_day:
-        times.append(second - seconds_of_day[0])
-    return times
+            hours, minutes, secs = clock.split(":")
+            seconds.append(int(hours) * 3600 + int(minutes) * 60 + float(secs))
+    return seconds
+
+
+def print_timing_check(drive: str, rows: list[dict[str, str | int | float]], packets: list[OxtsPacket]):
+    """Ego speed from the moved Velodyne positions over camera time, against the OXTS velocity.
+    Prints the range of time - oxts_time, and the RMS and largest difference in m/s."""
+    time_shifts = []
+    for row in rows:
+        time_shifts.append(row["time"] - row["oxts_time"])
+    speed_differences = []
+    for frame in range(1, len(rows)):
+        previous = rows[frame - 1]
+        current = rows[frame]
+        distance = math.hypot(current["velo_tx"] - previous["velo_tx"], current["velo_ty"] - previous["velo_ty"])
+        speed = distance / (current["time"] - previous["time"])
+        # mean of the two packets
+        oxts_speed = (math.hypot(packets[frame].ve, packets[frame].vn)
+                      + math.hypot(packets[frame - 1].ve, packets[frame - 1].vn)) / 2
+        speed_differences.append(speed - oxts_speed)
+    speed_differences = np.array(speed_differences)
+    print(f"{drive}: time - oxts_time {min(time_shifts) * 1000:+.0f} to {max(time_shifts) * 1000:+.0f} ms, "
+          f"speed minus OXTS velocity RMS {np.sqrt(np.mean(speed_differences ** 2)):.2f}, "
+          f"largest {np.abs(speed_differences).max():.2f} m/s")
 
 
 def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | float]]:
@@ -136,7 +170,21 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
     sync_dir = os.path.join(drive_dir, drive + "_sync")
     calib_dir = os.path.join(drive_dir, "calib")
     packets: list[OxtsPacket] = parse_oxts(os.path.join(sync_dir, "oxts"))
-    times: list[float] = frame_times(os.path.join(sync_dir, "image_02", "timestamps.txt"))
+    camera_seconds = seconds_of_day(os.path.join(sync_dir, "image_02", "timestamps.txt"))
+    oxts_seconds = seconds_of_day(os.path.join(sync_dir, "oxts", "timestamps.txt"))
+    if len(camera_seconds) != len(packets) or len(oxts_seconds) != len(packets):
+        raise ValueError(f"{drive}: {len(packets)} OXTS packets, {len(camera_seconds)} camera times, "
+                         f"{len(oxts_seconds)} OXTS times")
+
+    # both from the drive's first camera frame
+    times = []
+    oxts_times = []
+    time_shifts = []
+    for frame in range(len(packets)):
+        times.append(camera_seconds[frame] - camera_seconds[0])
+        oxts_times.append(oxts_seconds[frame] - camera_seconds[0])
+        time_shifts.append(camera_seconds[frame] - oxts_seconds[frame])
+
     imu_to_velo = parse_rigid_calibration(os.path.join(calib_dir, "calib_imu_to_velo.txt"))
     velo_to_cam = parse_rigid_calibration(os.path.join(calib_dir, "calib_velo_to_cam.txt"))
     cam_to_cam = parse_cam_to_cam_calibration(os.path.join(calib_dir, "calib_cam_to_cam.txt"))
@@ -146,13 +194,14 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
     T_velo_cam2 = np.linalg.inv(cam2_from_velo(velo_to_cam, cam_to_cam))
 
     rows = []
-    for frame, T_world_imu in enumerate(imu_poses_in_world(packets)):
+    for frame, T_world_imu in enumerate(imu_poses_in_world(packets, time_shifts)):
         T_world_velo = T_world_imu @ T_imu_velo
         T_world_cam2 = T_world_velo @ T_velo_cam2
         row = {}
         row["drive"] = drive
         row["frame"] = frame
         row["time"] = times[frame]
+        row["oxts_time"] = oxts_times[frame]
         row["velo_r11"] = T_world_velo[0, 0]
         row["velo_r12"] = T_world_velo[0, 1]
         row["velo_r13"] = T_world_velo[0, 2]
@@ -178,6 +227,8 @@ def ego_pose_rows(drive: str, drive_dir: str) -> list[dict[str, str | int | floa
         row["cam2_ty"] = T_world_cam2[1, 3]
         row["cam2_tz"] = T_world_cam2[2, 3]
         rows.append(row)
+
+    print_timing_check(drive, rows, packets)
     return rows
 
 
