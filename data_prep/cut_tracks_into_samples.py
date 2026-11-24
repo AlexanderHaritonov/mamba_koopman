@@ -5,11 +5,11 @@ t is the last observed frame:
     output  frames t + 1 .. t + output_steps    (15 positions by default)
 So t runs from the track's first frame + input_steps - 1 to its last frame - output_steps.
 
-Past and future positions are re-centred on the car's pose at t (car_frame.py): x, y, yaw, facing +x.
+Past and future positions are re-centred on the car's pose at t (data_model/car_frame.py): x, y, yaw, facing +x.
 Each sample also keeps where it comes from (drive, track, type, frame of t, world pose at t) and how far the car moves and turns over the whole window.
 Label errors are cut out of the tracks first (split_at_label_errors() in group_tracks_by_vehicle.py).
 
-Output: samples/samples_<split>.npz, for training, validation and test (drives in drive_split.py). Reads samples/vehicle_poses_world.csv.
+Output: samples/samples_<split>.npz, for training, validation and test (drives in data_model/drive_split.py). Reads samples/vehicle_poses_world.csv.
 """
 import argparse
 import math
@@ -18,11 +18,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from data_model.car_frame import car_frame_to_world, world_to_car_frame
 from data_model.data_classes import Sample, VehicleTrack
+from data_model.drive_split import TEST_DRIVES, VALIDATION_DRIVES
 from data_model.poses_io import VEHICLE_POSES_WORLD_PATH, read_vehicle_tracks
 from data_model.samples_io import read_samples, samples_path, save_samples
-from data_prep.car_frame import car_frame_to_world, world_to_car_frame
-from data_prep.drive_split import TEST_DRIVES, VALIDATION_DRIVES
 from data_prep.group_tracks_by_vehicle import keep_long_tracks, split_at_label_errors
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
