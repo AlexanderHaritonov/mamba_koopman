@@ -2,7 +2,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from data_model.data_classes import Prediction
-from evaluation.constant_baselines import least_squares_velocity
 
 class Kalman:
     def __init__(self, measurement_variance: float, process_variance: float):
@@ -77,31 +76,16 @@ class Kalman:
         return Kalman.Estimate(new_state, new_covariance)
 
 
-def predict_kalman(past: np.ndarray,
-                   output_steps: int,
-                   measurement_variance: float,
-                   process_variance: float,
-                   slow_process_variance: float = 0.0,
-                   slow_speed_threshold: float = 0.0) -> Prediction:
+def predict_kalman(past: np.ndarray, output_steps: int,
+                   measurement_variance: float, process_variance: float) -> Prediction:
     """Filter the past positions of one sample, then predict output_steps steps.
 
     past: (input steps, 3), x, y, yaw. At least 2 steps. Yaw is not used.
-    Speed: of the line through all past positions, in m per step.
-    Process variance of this sample: slow_process_variance if speed < slow_speed_threshold, else process_variance.
-    With the default threshold 0, all samples use process_variance.
     Returns Prediction: mu and sigma (output_steps, 2), x, y.
     """
+    kalman = Kalman(measurement_variance, process_variance)
     positions = past[:, :2].astype(np.float64)  # (input steps, 2)
     input_steps = past.shape[0]
-
-    # slow, nearly parked cars get less process noise
-    velocity = least_squares_velocity(positions[np.newaxis])[0]
-    speed = np.hypot(velocity[0], velocity[1])
-    if speed < slow_speed_threshold:
-        sample_process_variance = slow_process_variance
-    else:
-        sample_process_variance = process_variance
-    kalman = Kalman(measurement_variance, sample_process_variance)
 
     # start from the first two positions
     state = np.zeros(4)
@@ -129,3 +113,37 @@ def predict_kalman(past: np.ndarray,
         sigma[step, 0] = np.sqrt(estimate.covariance[0, 0] + measurement_variance)
         sigma[step, 1] = np.sqrt(estimate.covariance[1, 1] + measurement_variance)
     return Prediction(mu=mu, sigma=sigma)
+
+
+'''
+    def predict(self, estimate):
+        posx = estimate.position[0] + estimate.velocity[0]
+        posy = estimate.position[1] + estimate.velocity[1]
+        velx = estimate.velocity[0]
+        vely = estimate.velocity[1]
+
+        new_state = np.array([posx, posy, velx, vely])
+
+        # order: posx, posy, velx, vely
+        old = estimate.covariance
+
+        posx_posx = old[0, 0] + 2 * old[0, 2] + old[2, 2]
+        posy_posy = old[1, 1] + 2 * old[1, 3] + old[3, 3]
+        posx_posy = old[0, 1] + old[0, 3] + old[2, 1] + old[2, 3]
+        posx_velx = old[0, 2] + old[2, 2]
+        posx_vely = old[0, 3] + old[2, 3]
+        posy_velx = old[1, 2] + old[3, 2]
+        posy_vely = old[1, 3] + old[3, 3]
+        velx_velx = old[2, 2]
+        vely_vely = old[3, 3]
+        velx_vely = old[2, 3]
+
+        new_covariance = np.array([
+            [posx_posx, posx_posy, posx_velx, posx_vely],
+            [posx_posy, posy_posy, posy_velx, posy_vely],
+            [posx_velx, posy_velx, velx_velx, velx_vely],
+            [posx_vely, posy_vely, velx_vely, vely_vely],
+        ])
+
+        return Kalman.Estimate(new_state, new_covariance)
+'''
