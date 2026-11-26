@@ -76,6 +76,7 @@ class LegendEntry:
     lines: list[SwatchLine]
     dots: list[SwatchDot]
     ellipses: list[SwatchEllipse]
+    tooltip: str = ""  # longer text, shown on hover
 
 
 def swatch_line(color: str, line_width: float, x_start: float, x_end: float,
@@ -128,26 +129,29 @@ def legend_parked() -> LegendEntry:
 
 
 def legend_car_at_frame() -> LegendEntry:
-    return LegendEntry(label="vehicle at the frame, line towards its nose",
+    return LegendEntry(label="vehicle at the frame",
                        lines=[swatch_line(world_bev.MUTED_COLOR, world_bev.HEADING_LINE_WIDTH, 8, SWATCH_WIDTH - 2)],
                        dots=[swatch_dot(world_bev.MUTED_COLOR, world_bev.CAR_DOT_SIZE, 8,
                                         world_bev.SURFACE_COLOR, world_bev.CAR_DOT_EDGE_WIDTH)],
-                       ellipses=[])
+                       ellipses=[],
+                       tooltip="vehicle at the frame, line towards its nose")
 
 
 def legend_mu(predictor: str) -> LegendEntry:
-    return LegendEntry(label=f"{predictor} prediction μ",
+    return LegendEntry(label=f"{predictor} μ",
                        lines=[swatch_line(world_bev.PREDICTION_COLOR, world_bev.MU_LINE_WIDTH, 2, SWATCH_WIDTH - 2)],
                        dots=[],
-                       ellipses=[])
+                       ellipses=[],
+                       tooltip=f"{predictor} prediction μ")
 
 
 def legend_sigma(predictor: str) -> LegendEntry:
-    return LegendEntry(label=f"{predictor} 1σ ellipse, one per step",
+    return LegendEntry(label=f"{predictor} 1σ per step",
                        lines=[],
                        dots=[],
                        ellipses=[swatch_ellipse(world_bev.PREDICTION_COLOR, world_bev.SIGMA_LINE_WIDTH,
-                                                world_bev.SIGMA_OPACITY)])
+                                                world_bev.SIGMA_OPACITY)],
+                       tooltip=f"{predictor} 1σ ellipse, one per step")
 
 
 def legend_true_future() -> LegendEntry:

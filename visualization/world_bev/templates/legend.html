@@ -21,7 +21,7 @@
 {% macro legend(entries, width, height) -%}
 <ul class="legend">
 {%- for entry in entries %}
-<li>{{ swatch(entry, width, height) }}<span>{{ entry.label }}</span></li>
+<li{% if entry.tooltip %} title="{{ entry.tooltip }}"{% endif %}>{{ swatch(entry, width, height) }}<span>{{ entry.label }}</span></li>
 {%- endfor %}
 </ul>
 {%- endmacro %}

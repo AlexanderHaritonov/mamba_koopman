@@ -61,7 +61,8 @@ site/world_bev/thumbnails/<drive>.png
 - Drive page height: the top (heading, legend, map with axes, hint) fills the window, the map takes the height left, at least 300 px.
   The parked panels are below, one scroll down; a link under the map ("Parked cars: 6 of 7 under 0.2 m RMS ↓") leads there.
 - Names: "drive 0011". Index cards: track count and frame, no split.
-  Drive page: name and track count in one line, short legend labels.
+  Drive page: name, frame and counts in one line.
+  Legend always in one line, scrolls sideways on narrow screens. Short labels; the longer text is a tooltip (`LegendEntry.tooltip`).
 
 ## Decisions (2026-11-26)
 

@@ -10,9 +10,10 @@ p { margin: 4px 0; color: #52514e; }
 a { color: #2a78d6; }
 
 /* Legend of a drive page */
-.legend { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-wrap: wrap; gap: 6px 18px;
-          font-size: 13px; color: #52514e; }
-.legend li { display: flex; align-items: center; gap: 6px; }
+/* always one line: on a narrow screen it scrolls sideways */
+.legend { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-wrap: nowrap; gap: 18px;
+          overflow-x: auto; font-size: 13px; color: #52514e; }
+.legend li { flex: none; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .swatch { flex: none; }
 
 /* Map and parked panels of a drive page */
