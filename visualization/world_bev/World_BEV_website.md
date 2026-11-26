@@ -55,6 +55,9 @@ site/world_bev/thumbnails/<drive>.png
   A CSS transform on those shapes did not reach the dots in Chrome; the `transform` attribute does.
   Track labels: matplotlib writes each as glyphs in a group with `translate(x y) scale(s -s)`. On every zoom JS shrinks the group by 1 / zoom
   around the track end; the end is (x, y) minus `TRACK_LABEL_OFFSET` (`data-label-offset` on `#map`).
+- Start view (load, refresh, window resize): the ego car at the frame in the middle, 60 m on the shorter side (`START_VIEW_METRES` in JS).
+  The ego position comes as `data-ego-x`, `data-ego-y` on `#map`. Without it (no samples) or for a smaller drive: the whole drive.
+  Reset shows the whole drive.
 - Axes and grid: not in the map SVG, so they do not zoom away. Two empty `<svg>` strips (left, bottom) and a grid `<svg>` behind the transparent map.
   On every pan and zoom (`onUpdatedCTM`), JS works out the visible metres from the map limits (`data-` attributes on `#map`) and redraws ticks and grid lines,
   one step of 1, 2 or 5 × 10ⁿ m, at least 80 px apart.

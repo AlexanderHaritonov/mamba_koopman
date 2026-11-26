@@ -6,12 +6,16 @@
 var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 var PIXELS_BETWEEN_TICKS = 80;  // smallest distance between two ticks on screen
 var TICK_LENGTH = 5;
+var START_VIEW_METRES = 60;  // at the start the shorter side of the map shows this much
 
 var mapElement = document.getElementById("map");
 var map = mapElement.querySelector("svg");
 var xMin = Number(mapElement.dataset.xMin);
 var xMax = Number(mapElement.dataset.xMax);
 var yMax = Number(mapElement.dataset.yMax);
+var hasEgo = "egoX" in mapElement.dataset;  // no ego position: drives without samples
+var egoX = Number(mapElement.dataset.egoX);
+var egoY = Number(mapElement.dataset.egoY);
 var xAxis = document.getElementById("x-axis");
 var yAxis = document.getElementById("y-axis");
 var grid = document.getElementById("map-grid");
@@ -96,11 +100,36 @@ function addText(parent, x, y, anchor, text) {
     parent.appendChild(label);
 }
 
+// Screen pixels per metre at the current zoom.
+function currentPixelsPerMetre() {
+    var sizes = panZoom.getSizes();
+    // the map SVG fills its axes, so its viewBox width is xMax - xMin metres
+    return sizes.realZoom * sizes.viewBox.width / (xMax - xMin);
+}
+
+// The ego car in the middle, START_VIEW_METRES on the shorter side.
+// Without an ego position, or if the whole drive is smaller: the whole drive.
+function showStartView() {
+    panZoom.fit();
+    panZoom.center();
+    if (!hasEgo) {
+        return;
+    }
+    var sizes = panZoom.getSizes();
+    var wantedPixelsPerMetre = Math.min(sizes.width, sizes.height) / START_VIEW_METRES;
+    if (wantedPixelsPerMetre <= currentPixelsPerMetre()) {
+        return;
+    }
+    panZoom.zoomBy(wantedPixelsPerMetre / currentPixelsPerMetre());
+    var pixelsPerMetre = currentPixelsPerMetre();
+    panZoom.pan({ x: sizes.width / 2 - (egoX - xMin) * pixelsPerMetre,
+                  y: sizes.height / 2 - (yMax - egoY) * pixelsPerMetre });
+}
+
 function drawAxes() {
     var pan = panZoom.getPan();
     var sizes = panZoom.getSizes();
-    // the map SVG fills its axes, so its viewBox width is xMax - xMin metres
-    var pixelsPerMetre = sizes.realZoom * sizes.viewBox.width / (xMax - xMin);
+    var pixelsPerMetre = currentPixelsPerMetre();
     var leftMetres = xMin - pan.x / pixelsPerMetre;
     var rightMetres = xMin + (sizes.width - pan.x) / pixelsPerMetre;
     var topMetres = yMax + pan.y / pixelsPerMetre;
@@ -151,11 +180,11 @@ panZoom = svgPanZoom(map, {
         }
     }
 });
+showStartView();
 drawAxes();
 
 window.addEventListener("resize", function () {
     panZoom.resize();
-    panZoom.fit();
-    panZoom.center();
+    showStartView();
     drawAxes();
 });

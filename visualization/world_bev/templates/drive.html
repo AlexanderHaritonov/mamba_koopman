@@ -18,13 +18,15 @@
     <svg id="map-grid"></svg>
     <div id="map" data-x-min="{{ map_area.x_min }}" data-x-max="{{ map_area.x_max }}"
          data-y-min="{{ map_area.y_min }}" data-y-max="{{ map_area.y_max }}"
-         data-label-offset="{{ label_offset }}">{{ map_svg | safe }}</div>
+         data-label-offset="{{ label_offset }}"
+         {%- if ego_xy is not none %} data-ego-x="{{ ego_xy[0] }}" data-ego-y="{{ ego_xy[1] }}"{% endif %}>
+      {{- map_svg | safe }}</div>
   </div>
   <svg id="x-axis" class="axis"></svg>
   <span class="axis-label x-label">x East (m)</span>
 </div>
 <div class="below-map">
-  <span class="hint">Mouse wheel or the buttons zoom, dragging pans, double click zooms in.</span>
+  <span class="hint">Mouse wheel or the buttons zoom, dragging pans, double click zooms in, Reset shows the whole drive.</span>
   {% if panels_svg is none %}
   <span class="hint">No parked cars</span>
   {% else %}

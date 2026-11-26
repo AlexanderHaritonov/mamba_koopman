@@ -272,9 +272,14 @@ def main():
         frame = frame_with_most_turning_samples(samples, drive)
         predictions_world = []
         vehicle_count = 0
+        ego_xy = None  # the page starts zoomed in on it
         if frame is not None:
             predictions_world = world_bev.predictions_in_world(samples, predictions, drive, frame)
-            vehicle_count = len(world_bev.cars_at_frame(tracks, frame))
+            cars = world_bev.cars_at_frame(tracks, frame)
+            vehicle_count = len(cars)
+            for car in cars:
+                if car.track.object_type == "Ego":
+                    ego_xy = (float(car.xy[0]), float(car.xy[1]))
 
         map_svg = world_bev.world_bev_svg(tracks, frame, predictions_world, with_axes=False)
         parked = world_bev.parked_tracks(tracks)
@@ -295,6 +300,7 @@ def main():
                                      swatch_height=SWATCH_HEIGHT,
                                      map_svg=inline_svg(map_svg.svg),
                                      map_area=map_svg,
+                                     ego_xy=ego_xy,
                                      label_offset=world_bev.TRACK_LABEL_OFFSET,
                                      panels_svg=panels_svg,
                                      dot_rms=world_bev.DOT_RMS,
