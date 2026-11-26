@@ -59,6 +59,8 @@ AXIS_COLOR = "#c3c2b7"
 # Marks, in points. The HTML legend uses the same values.
 TRACK_LINE_WIDTH = 0.6
 TRACK_DOT_SIZE = 1.2  # diameter
+TRACK_LABEL_SIZE = 6
+TRACK_LABEL_OFFSET = 3.0  # up and right of the track end
 CAR_DOT_SIZE = 5.0  # diameter
 CAR_DOT_EDGE_WIDTH = 0.8
 HEADING_LINE_WIDTH = 1.5
@@ -240,8 +242,8 @@ def draw_tracks(axes: Axes, tracks: list[VehicleTrack], with_labels: bool):
             label = "ego"
         else:
             label = str(track.track_id)
-        axes.annotate(label, xy=(xy[-1, 0], xy[-1, 1]), xytext=(3, 3), textcoords="offset points",
-                      fontsize=6, color=TEXT_COLOR)
+        axes.annotate(label, xy=(xy[-1, 0], xy[-1, 1]), xytext=(TRACK_LABEL_OFFSET, TRACK_LABEL_OFFSET),
+                      textcoords="offset points", fontsize=TRACK_LABEL_SIZE, color=TEXT_COLOR)
 
 
 def draw_cars_at_frame(axes: Axes, tracks: list[VehicleTrack], frame: int):
@@ -320,17 +322,38 @@ def map_height(tracks: list[VehicleTrack]) -> float:
     return min(max(FIGURE_WIDTH * extent_y / max(extent_x, 1.0), 4.0), 12.0)
 
 
+@dataclass
+class MapSvg:
+    """SVG text of a map and the area it shows, in m."""
+    svg: str
+    x_min: float
+    x_max: float
+    y_min: float
+    y_max: float
+
+
 def world_bev_svg(tracks: list[VehicleTrack], frame: int | None,
-                  predictions_world: list[PredictionInWorld]) -> str:
-    """The map of one drive as SVG text. With a frame, also the cars at that frame and the predictions."""
-    figure = Figure(figsize=(FIGURE_WIDTH, map_height(tracks)), layout="constrained", facecolor=SURFACE_COLOR)
-    axes = figure.add_subplot()
-    style_map_axes(axes)
+                  predictions_world: list[PredictionInWorld], with_axes: bool) -> MapSvg:
+    """The map of one drive as SVG. With a frame, also the cars at that frame and the predictions.
+    Without axes: the map fills the whole SVG, transparent background, no ticks, no grid."""
+    if with_axes:
+        figure = Figure(figsize=(FIGURE_WIDTH, map_height(tracks)), layout="constrained", facecolor=SURFACE_COLOR)
+        axes = figure.add_subplot()
+        style_map_axes(axes)
+    else:
+        figure = Figure(figsize=(FIGURE_WIDTH, map_height(tracks)), facecolor="none")
+        axes = figure.add_axes((0.0, 0.0, 1.0, 1.0))
+        axes.set_aspect("equal", adjustable="datalim")
+        axes.axis("off")
     draw_tracks(axes, tracks, with_labels=True)
     if frame is not None:
         draw_cars_at_frame(axes, tracks, frame)
         draw_predictions(axes, predictions_world)
-    return svg_text(figure)
+    svg = svg_text(figure)
+    # read the limits after drawing: the equal aspect changes them while drawing
+    x_min, x_max = axes.get_xlim()
+    y_min, y_max = axes.get_ylim()
+    return MapSvg(svg, float(x_min), float(x_max), float(y_min), float(y_max))
 
 
 def parked_panels_svg(parked: list[VehicleTrack]) -> str:
@@ -422,7 +445,7 @@ def main():
     os.makedirs(PLOTS_DIR, exist_ok=True)
     map_path = os.path.join(PLOTS_DIR, name + ".svg")
     with open(map_path, "w") as f:
-        f.write(world_bev_svg(tracks, args.frame, predictions_world))
+        f.write(world_bev_svg(tracks, args.frame, predictions_world, with_axes=True).svg)
     print(f"wrote {map_path}")
     if len(parked) > 0:
         panels_path = os.path.join(PLOTS_DIR, f"world_bev_{args.drive}_parked.svg")

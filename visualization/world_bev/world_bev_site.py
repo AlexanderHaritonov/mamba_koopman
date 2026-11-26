@@ -272,7 +272,7 @@ def main():
             predictions_world = world_bev.predictions_in_world(samples, predictions, drive, frame)
             vehicle_count = len(world_bev.cars_at_frame(tracks, frame))
 
-        map_svg = world_bev.world_bev_svg(tracks, frame, predictions_world)
+        map_svg = world_bev.world_bev_svg(tracks, frame, predictions_world, with_axes=False)
         parked = world_bev.parked_tracks(tracks)
         panels_svg = None
         if len(parked) > 0:
@@ -289,7 +289,9 @@ def main():
                                                                    predictions.sigma is not None),
                                      swatch_width=SWATCH_WIDTH,
                                      swatch_height=SWATCH_HEIGHT,
-                                     map_svg=inline_svg(map_svg),
+                                     map_svg=inline_svg(map_svg.svg),
+                                     map_area=map_svg,
+                                     label_offset=world_bev.TRACK_LABEL_OFFSET,
                                      panels_svg=panels_svg,
                                      dot_rms=world_bev.DOT_RMS,
                                      svg_pan_zoom_url=SVG_PAN_ZOOM_URL)

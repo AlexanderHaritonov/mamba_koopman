@@ -3,16 +3,25 @@
 {% block title %}{{ label }}: world BEV{% endblock %}
 {% block body %}
 <p><a href="../index.html">All drives</a></p>
-<h1>{{ label }}<span class="subtitle">{{ summary.labeled_track_count }} labeled
-track{{ "" if summary.labeled_track_count == 1 else "s" }} and the ego car</span></h1>
 {% if frame is none %}
-<p>No samples in this drive, so no predictions.</p>
+<h1>{{ label }}<span class="subtitle">: no samples, so no predictions</span></h1>
 {% else %}
-<p>Frame {{ frame }}: {{ vehicle_count }} vehicle{{ "" if vehicle_count == 1 else "s" }},
-{{ prediction_count }} {{ predictor }} prediction{{ "" if prediction_count == 1 else "s" }} made at this frame.</p>
+<h1>{{ label }}<span class="subtitle">, frame {{ frame }}: {{ vehicle_count }} vehicle{{ "" if vehicle_count == 1 else "s" }},
+{{ prediction_count }} {{ predictor }} prediction{{ "" if prediction_count == 1 else "s" }}</span></h1>
 {% endif %}
 {{ legend(legend_entries, swatch_width, swatch_height) }}
-<div id="map" class="figure">{{ map_svg | safe }}</div>
+<div class="map-layout">
+  <span class="axis-label y-label">y North (m)</span>
+  <svg id="y-axis" class="axis"></svg>
+  <div class="map-area figure">
+    <svg id="map-grid"></svg>
+    <div id="map" data-x-min="{{ map_area.x_min }}" data-x-max="{{ map_area.x_max }}"
+         data-y-min="{{ map_area.y_min }}" data-y-max="{{ map_area.y_max }}"
+         data-label-offset="{{ label_offset }}">{{ map_svg | safe }}</div>
+  </div>
+  <svg id="x-axis" class="axis"></svg>
+  <span class="axis-label x-label">x East (m)</span>
+</div>
 <p class="hint">Mouse wheel or the buttons zoom, dragging pans, double click zooms in.</p>
 <h2>Parked cars: {{ summary.dot_count }} of {{ summary.parked_count }} under {{ dot_rms }} m RMS</h2>
 <p>Positions around their mean, at true scale. Dashed circle: {{ dot_rms }} m.</p>

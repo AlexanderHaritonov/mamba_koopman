@@ -17,7 +17,8 @@ All in `visualization/world_bev/`. Run from the project folder:
 ## SVG side: `plot_world_bev.py`
 
 - Line widths, dot sizes and the dash pattern become named constants next to the colors. The HTML legend uses the same values.
-- `world_bev_svg(tracks, frame, predictions_world)` → SVG text: the map only. Axes, tracks, cars at the frame, predictions. No title, no legend.
+- `world_bev_svg(tracks, frame, predictions_world, with_axes)` → `MapSvg`: SVG text and the area it shows (m). Tracks, cars at the frame, predictions. No title, no legend.
+  Site: `with_axes=False`, the map fills the SVG, no ticks, no grid, transparent. `plots/`: with axes.
 - `parked_panels_svg(parked_tracks)` → SVG text: the strip of parked panels. A separate SVG, so it does not zoom with the map.
 - Both return text, not a file: the site puts it into the page, `main` writes it to `plots/`.
 - `write_thumbnail_png(png_path, tracks)`: the whole drive, no axes, no text, about 400 px wide.
@@ -52,6 +53,11 @@ site/world_bev/thumbnails/<drive>.png
   Lines and dots keep their size on screen: CSS `vector-effect: non-scaling-stroke` for lines,
   and on every zoom, JS scales the dot shapes (in `<defs>`, used by every dot) by 1 / zoom.
   A CSS transform on those shapes did not reach the dots in Chrome; the `transform` attribute does.
+  Track labels: matplotlib writes each as glyphs in a group with `translate(x y) scale(s -s)`. On every zoom JS shrinks the group by 1 / zoom
+  around the track end; the end is (x, y) minus `TRACK_LABEL_OFFSET` (`data-label-offset` on `#map`).
+- Axes and grid: not in the map SVG, so they do not zoom away. Two empty `<svg>` strips (left, bottom) and a grid `<svg>` behind the transparent map.
+  On every pan and zoom (`onUpdatedCTM`), JS works out the visible metres from the map limits (`data-` attributes on `#map`) and redraws ticks and grid lines,
+  one step of 1, 2 or 5 × 10ⁿ m, at least 80 px apart.
 - Names: "drive 0011". Index cards: track count and frame, no split.
   Drive page: name and track count in one line, short legend labels.
 
