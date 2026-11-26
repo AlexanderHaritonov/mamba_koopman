@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "legend.html" import legend %}
+{% block title %}{{ label }}: world BEV{% endblock %}
+{% block body %}
+<p><a href="../index.html">All drives</a></p>
+<h1>{{ label }}<span class="subtitle">{{ summary.labeled_track_count }} labeled
+track{{ "" if summary.labeled_track_count == 1 else "s" }} and the ego car</span></h1>
+{% if frame is none %}
+<p>No samples in this drive, so no predictions.</p>
+{% else %}
+<p>Frame {{ frame }}: {{ vehicle_count }} vehicle{{ "" if vehicle_count == 1 else "s" }},
+{{ prediction_count }} {{ predictor }} prediction{{ "" if prediction_count == 1 else "s" }} made at this frame.</p>
+{% endif %}
+{{ legend(legend_entries, swatch_width, swatch_height) }}
+<div id="map" class="figure">{{ map_svg | safe }}</div>
+<p class="hint">Mouse wheel or the buttons zoom, dragging pans, double click zooms in.</p>
+<h2>Parked cars: {{ summary.dot_count }} of {{ summary.parked_count }} under {{ dot_rms }} m RMS</h2>
+<p>Positions around their mean, at true scale. Dashed circle: {{ dot_rms }} m.</p>
+{% if panels_svg is none %}
+<p>No parked cars.</p>
+{% else %}
+<div id="parked" class="figure">{{ panels_svg | safe }}</div>
+{% endif %}
+<script src="{{ svg_pan_zoom_url }}"></script>
+<script src="../map_zoom.js"></script>
+{% endblock %}

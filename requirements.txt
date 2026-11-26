@@ -1,2 +1,4 @@
 remotezip
 numpy
+matplotlib
+jinja2

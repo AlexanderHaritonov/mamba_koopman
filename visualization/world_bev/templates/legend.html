@@ -1,0 +1,27 @@
+{# Legend of the map: one list item per entry, each with a small SVG swatch. Sizes in px. #}
+
+{% macro swatch(entry, width, height) -%}
+<svg class="swatch" width="{{ width }}" height="{{ height }}" viewBox="0 0 {{ width }} {{ height }}" aria-hidden="true">
+{%- for line in entry.lines %}
+<line x1="{{ line.x_start }}" y1="{{ line.y }}" x2="{{ line.x_end }}" y2="{{ line.y }}" stroke="{{ line.color }}"
+      stroke-width="{{ line.width }}" stroke-opacity="{{ line.opacity }}"
+      {%- if line.dash is not none %} stroke-dasharray="{{ line.dash }}"{% endif %}/>
+{%- endfor %}
+{%- for dot in entry.dots %}
+<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="{{ dot.radius }}" fill="{{ dot.color }}"
+        {%- if dot.edge_color is not none %} stroke="{{ dot.edge_color }}" stroke-width="{{ dot.edge_width }}"{% endif %}/>
+{%- endfor %}
+{%- for ellipse in entry.ellipses %}
+<ellipse cx="{{ ellipse.x }}" cy="{{ ellipse.y }}" rx="{{ ellipse.radius_x }}" ry="{{ ellipse.radius_y }}" fill="none"
+         stroke="{{ ellipse.color }}" stroke-width="{{ ellipse.width }}" stroke-opacity="{{ ellipse.opacity }}"/>
+{%- endfor %}
+</svg>
+{%- endmacro %}
+
+{% macro legend(entries, width, height) -%}
+<ul class="legend">
+{%- for entry in entries %}
+<li>{{ swatch(entry, width, height) }}<span>{{ entry.label }}</span></li>
+{%- endfor %}
+</ul>
+{%- endmacro %}
