@@ -2,6 +2,7 @@
 {% from "legend.html" import legend %}
 {% block title %}{{ label }}: world BEV{% endblock %}
 {% block body %}
+<div class="map-page">
 <p><a href="../index.html">All drives</a></p>
 {% if frame is none %}
 <h1>{{ label }}<span class="subtitle">: no samples, so no predictions</span></h1>
@@ -23,6 +24,7 @@
   <span class="axis-label x-label">x East (m)</span>
 </div>
 <p class="hint">Mouse wheel or the buttons zoom, dragging pans, double click zooms in.</p>
+</div>
 <h2>Parked cars: {{ summary.dot_count }} of {{ summary.parked_count }} under {{ dot_rms }} m RMS</h2>
 <p>Positions around their mean, at true scale. Dashed circle: {{ dot_rms }} m.</p>
 {% if panels_svg is none %}

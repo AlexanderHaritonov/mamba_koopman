@@ -17,13 +17,18 @@ a { color: #2a78d6; }
 
 /* Map and parked panels of a drive page */
 .figure { background: #fcfcfb; border: 1px solid rgba(11, 11, 11, 0.10); border-radius: 6px; overflow: hidden; }
-#map svg { display: block; width: 100%; height: 80vh; }
+#map svg { display: block; width: 100%; height: 100%; }
 #map svg path { vector-effect: non-scaling-stroke; }  /* lines keep their width on screen while zooming */
 
+/* Top of a drive page: fills the window (minus the body padding), the map takes the height left */
+.map-page { min-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+
 /* Map with axes and grid: map_zoom.js draws them on every pan and zoom */
-.map-layout { display: grid; grid-template-columns: 18px 48px minmax(0, 1fr); grid-template-rows: auto 22px 18px; }
+/* flex-basis 0: the height comes from the free space, not from the SVG's own height. 340px = the rows' smallest sizes */
+.map-layout { flex: 1 1 0; min-height: 340px; display: grid; grid-template-columns: 18px 48px minmax(0, 1fr);
+              grid-template-rows: minmax(300px, 1fr) 22px 18px; }
 .map-area { grid-row: 1; grid-column: 3; position: relative; }
-#map { position: relative; }  /* above the grid */
+#map { position: relative; height: 100%; }  /* above the grid */
 #map-grid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 #y-axis { grid-row: 1; grid-column: 2; width: 100%; height: 100%; }
 #x-axis { grid-row: 2; grid-column: 3; width: 100%; height: 100%; }
