@@ -40,6 +40,8 @@ a { color: #2a78d6; }
 .grid-line { stroke: #e1e0d9; stroke-width: 1; }
 #parked svg { display: block; width: 100%; height: auto; }
 .hint { font-size: 13px; color: #898781; }
+.below-map { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 16px; margin: 4px 0;
+             font-size: 13px; }
 
 /* Thumbnails of the index page */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }

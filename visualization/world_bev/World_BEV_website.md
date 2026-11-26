@@ -59,7 +59,7 @@ site/world_bev/thumbnails/<drive>.png
   On every pan and zoom (`onUpdatedCTM`), JS works out the visible metres from the map limits (`data-` attributes on `#map`) and redraws ticks and grid lines,
   one step of 1, 2 or 5 × 10ⁿ m, at least 80 px apart.
 - Drive page height: the top (heading, legend, map with axes, hint) fills the window, the map takes the height left, at least 300 px.
-  The parked panels are below, one scroll down.
+  The parked panels are below, one scroll down; a link under the map ("Parked cars: 6 of 7 under 0.2 m RMS ↓") leads there.
 - Names: "drive 0011". Index cards: track count and frame, no split.
   Drive page: name and track count in one line, short legend labels.
 
