@@ -11,7 +11,7 @@ Output: samples/vehicle_poses_world.csv
         h, w, l, occlusion, truncation, state, finished    as in vehicle_poses_velo.csv
 
 The ego car is one more track per drive: track_id -1, object_type Ego, truncation 2, position at the middle of
-the car's bottom, every frame of the drive. h, w, l, occlusion, state and finished are empty.
+the car's bottom, every frame of the drive. h, w, l of a VW Passat B6. occlusion, state and finished are empty.
 
 Drives without ego poses are skipped.
 
@@ -68,6 +68,10 @@ EGO_TRACK_ID = -1
 EGO_OBJECT_TYPE = "Ego"
 EGO_TRUNCATION = 2  # outside the image
 EGO_POINT_VELO = np.array([0.53, 0.0, -VELODYNE_HEIGHT])  # middle of the ego car's bottom, in the Velodyne frame
+# VW Passat B6 sedan, metres, from auto-data.net (carId 8882), as the overhangs for EGO_POINT_VELO
+EGO_HEIGHT = 1.472
+EGO_WIDTH = 1.82  # without mirrors
+EGO_LENGTH = 4.765
 DOT_SPREAD = 0.2  # metres, largest world spread of a parked car
 STATIC_SPREAD = 1.0  # metres, largest world spread of a standing track
 PASSED_SPREAD = 2.0  # metres, smallest Velodyne spread of a track the ego car drove past
@@ -168,9 +172,9 @@ def ego_track_rows(drive: str, ego_poses: EgoPoses) -> list[WorldRow]:
                              y=float(position_world[1]),
                              z=float(position_world[2]),
                              yaw=float(unwrapped_yaws[row_index]),
-                             h="",
-                             w="",
-                             l="",
+                             h=str(EGO_HEIGHT),
+                             w=str(EGO_WIDTH),
+                             l=str(EGO_LENGTH),
                              occlusion="",
                              truncation=str(EGO_TRUNCATION),
                              state="",

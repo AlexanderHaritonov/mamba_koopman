@@ -42,7 +42,7 @@ def read_ego_poses(filepath: str = EGO_POSES_PATH) -> EgoPoses:
 def read_vehicle_tracks(filepath: str = VEHICLE_POSES_WORLD_PATH) -> list[VehicleTrack]:
     """All tracks of vehicle_poses_world.csv, sorted by drive and track_id.
 
-    Reads only the contract columns: drive, track_id, object_type, frame, time, x, y, z, yaw, truncation.
+    Reads only the contract columns: drive, track_id, object_type, frame, time, x, y, z, yaw, truncation, and l, w for the size.
     """
     rows_by_track = {}  # (drive, track_id) -> rows of the track
     with open(filepath, newline="") as f:
@@ -65,6 +65,8 @@ def read_vehicle_tracks(filepath: str = VEHICLE_POSES_WORLD_PATH) -> list[Vehicl
         for row in rows:
             if row["object_type"] != rows[0]["object_type"]:
                 raise ValueError(f"{drive} track {track_id}: object_type changes inside the track")
+            if row["l"] != rows[0]["l"] or row["w"] != rows[0]["w"]:
+                raise ValueError(f"{drive} track {track_id}: l or w changes inside the track")
             frames.append(int(row["frame"]))
             times.append(float(row["time"]))
             positions.append([float(row["x"]), float(row["y"]), float(row["z"])])
@@ -76,9 +78,17 @@ def read_vehicle_tracks(filepath: str = VEHICLE_POSES_WORLD_PATH) -> list[Vehicl
                 raise ValueError(f"{drive} track {track_id}: frame {frames[frame_index - 1]} "
                                  f"is followed by frame {frames[frame_index]}")
 
+        length = None
+        width = None
+        if rows[0]["l"] != "" and rows[0]["w"] != "":
+            length = float(rows[0]["l"])
+            width = float(rows[0]["w"])
+
         tracks.append(VehicleTrack(drive=drive,
                                    track_id=track_id,
                                    object_type=rows[0]["object_type"],
+                                   length=length,
+                                   width=width,
                                    frames=np.array(frames),
                                    times=np.array(times),
                                    positions=np.array(positions),

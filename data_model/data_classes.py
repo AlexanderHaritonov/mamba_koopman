@@ -27,6 +27,8 @@ class VehicleTrack:
     drive: str
     track_id: int
     object_type: str  # Car, Van, Truck or Ego
+    length: float | None  # metres, of the box seen from above.
+    width: float | None  # metres
     frames: np.ndarray  # (N,) int, video frames, consecutive
     times: np.ndarray  # (N,) seconds since the drive's first frame
     positions: np.ndarray  # (N, 3) x, y, z in the world, metres

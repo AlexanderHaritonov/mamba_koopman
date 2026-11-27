@@ -43,6 +43,13 @@ All in `visualization/world_bev/`. Run from the project folder:
 - Legend: "moving vehicles" shows the first three colors. μ, 1σ and "vehicle at the frame" have gray swatches, the tooltip says "in the vehicle's color".
 - Parked panels: dots gray, the dashed 0.2 m circle dark gray.
 
+## Vehicles at the frame
+
+- Each vehicle at the frame is its box from above, at true size: outline and a light fill (`CAR_FILL_OPACITY`) in its color, and a line from its position (the middle of the box) to the middle of the front edge.
+- The box zooms with the map; its lines keep their width on screen. Track dots stay dots.
+- Size: `VehicleTrack.length`, `width`, from the `l`, `w` columns. Ego: VW Passat B6, 4.765 × 1.82 m, written into the CSV by `data_prep/transform_vehicle_poses_to_world.py`.
+  A track without a size gets `DEFAULT_CAR_LENGTH` × `DEFAULT_CAR_WIDTH` (4.0 × 1.6 m).
+
 ## HTML side: `world_bev_site.py`
 
 - No HTML in Python: the text and markup are in the templates, Python passes data.
@@ -100,3 +107,4 @@ site/world_bev/thumbnails/drive_<number>.png
 1. File names without the date: `drive_0011.html`, `drive_0011.png`.
 2. One color per moving track, parked gray, μ and 1σ in the car's color.
 3. Map background stone `#ebe9e3`, chosen from 8 light colors. A dark map was tried too: the colors stand out more, but it needs changes in many places.
+4. Vehicles at the frame as boxes instead of dots. The size goes into `VehicleTrack`, not only into the visualization.

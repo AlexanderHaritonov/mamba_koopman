@@ -76,10 +76,12 @@ def cut_frame_indices(track: VehicleTrack, ego_positions: dict[tuple[str, int], 
 
 
 def track_part(track: VehicleTrack, start: int, end: int) -> VehicleTrack:
-    """Frames start .. end - 1 of the track, as a track with the same drive, track_id and type."""
+    """Frames start .. end - 1 of the track, as a track with the same drive, track_id, type and size."""
     return VehicleTrack(drive=track.drive,
                         track_id=track.track_id,
                         object_type=track.object_type,
+                        length=track.length,
+                        width=track.width,
                         frames=track.frames[start:end],
                         times=track.times[start:end],
                         positions=track.positions[start:end],

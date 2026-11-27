@@ -2,7 +2,7 @@
 
 Parked cars should be dots. A labeled track is parked if all its positions stay within PARKED_SPREAD of their mean.
 The parked panels show each parked car's positions around their mean, at true scale, with a DOT_RMS circle.
-With a frame, the map also shows each car at that frame, and the predictions made at that frame.
+With a frame, the map also shows each car at that frame as its box, and the predictions made at that frame.
 Colors: ego black, parked gray, each moving track one of TRACK_COLORS. Cars at the frame and predictions in their track's color.
 
 The SVGs have no title and no legend: world_bev_site.py puts them into HTML pages with both.
@@ -36,7 +36,8 @@ PARKED_SPREAD = 1.0  # m, largest distance from the mean position of a parked tr
 DOT_RMS = 0.2  # m, a parked car is a dot if its RMS distance from the mean is below this
 PANEL_HALF_SIZE = 0.5  # m, parked panels show 1 m x 1 m
 PANELS_PER_ROW = 8
-HEADING_LENGTH = 2.0  # m, line from a car's position towards its nose
+DEFAULT_CAR_LENGTH = 4.0  # m, box of a track without a size
+DEFAULT_CAR_WIDTH = 1.6  # m
 ELLIPSE_POINT_COUNT = 37
 
 FIGURE_WIDTH = 8.0  # inches
@@ -62,9 +63,8 @@ TRACK_LINE_WIDTH = 0.6
 TRACK_DOT_SIZE = 1.2  # diameter
 TRACK_LABEL_SIZE = 6
 TRACK_LABEL_OFFSET = 3.0  # up and right of the track end
-CAR_DOT_SIZE = 5.0  # diameter
-CAR_DOT_EDGE_WIDTH = 0.8
-HEADING_LINE_WIDTH = 1.5
+CAR_LINE_WIDTH = 1.0  # box outline and the line to the nose
+CAR_FILL_OPACITY = 0.25
 MU_LINE_WIDTH = 1.2
 SIGMA_LINE_WIDTH = 0.5
 SIGMA_OPACITY = 0.7
@@ -163,9 +163,29 @@ def cars_at_frame(tracks: list[VehicleTrack], frame: int) -> list[CarAtFrame]:
     return cars
 
 
-def heading_segment(car: CarAtFrame) -> np.ndarray:
-    """(2, 2): the car's position, and the point HEADING_LENGTH ahead of it."""
-    nose = car.xy + HEADING_LENGTH * np.array([math.cos(car.yaw), math.sin(car.yaw)])
+def car_size(track: VehicleTrack) -> tuple[float, float]:
+    """Length and width of the track's box, metres. Default car size if the data has none."""
+    if track.length is None or track.width is None:
+        return DEFAULT_CAR_LENGTH, DEFAULT_CAR_WIDTH
+    return track.length, track.width
+
+
+def box_corners(car: CarAtFrame) -> np.ndarray:
+    """(5, 2): corners of the car's box from above: front left, front right, rear right, rear left, front left again."""
+    length, width = car_size(car.track)
+    forward = np.array([math.cos(car.yaw), math.sin(car.yaw)]) * length / 2
+    left = np.array([-math.sin(car.yaw), math.cos(car.yaw)]) * width / 2
+    front_left = car.xy + forward + left
+    front_right = car.xy + forward - left
+    rear_right = car.xy - forward - left
+    rear_left = car.xy - forward + left
+    return np.array([front_left, front_right, rear_right, rear_left, front_left])
+
+
+def nose_segment(car: CarAtFrame) -> np.ndarray:
+    """(2, 2): the car's position, and the middle of the box's front edge."""
+    length, width = car_size(car.track)
+    nose = car.xy + np.array([math.cos(car.yaw), math.sin(car.yaw)]) * length / 2
     return np.array([car.xy, nose])
 
 
@@ -257,13 +277,14 @@ def draw_tracks(axes: Axes, tracks: list[VehicleTrack], colors: dict[int, str], 
 
 
 def draw_cars_at_frame(axes: Axes, tracks: list[VehicleTrack], frame: int, colors: dict[int, str]):
-    """Each car at the frame: a dot, and a line towards its nose."""
+    """Each car at the frame: its box from above, lightly filled, and a line from its position to the nose."""
     for car in cars_at_frame(tracks, frame):
         color = colors[car.track.track_id]
-        segment = heading_segment(car)
-        axes.plot(segment[:, 0], segment[:, 1], color=color, linewidth=HEADING_LINE_WIDTH, solid_capstyle="round")
-        axes.plot(car.xy[0], car.xy[1], marker="o", markersize=CAR_DOT_SIZE, color=color,
-                  markeredgecolor=SURFACE_COLOR, markeredgewidth=CAR_DOT_EDGE_WIDTH)
+        corners = box_corners(car)
+        nose = nose_segment(car)
+        axes.fill(corners[:, 0], corners[:, 1], color=color, alpha=CAR_FILL_OPACITY, linewidth=0)
+        axes.plot(corners[:, 0], corners[:, 1], color=color, linewidth=CAR_LINE_WIDTH)
+        axes.plot(nose[:, 0], nose[:, 1], color=color, linewidth=CAR_LINE_WIDTH)
 
 
 def draw_predictions(axes: Axes, predictions: list[PredictionInWorld], colors: dict[int, str]):

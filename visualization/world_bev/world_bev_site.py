@@ -71,11 +71,23 @@ class SwatchEllipse:
 
 
 @dataclass
+class SwatchRectangle:
+    color: str
+    x: float  # left
+    y: float  # top
+    width: float
+    height: float
+    line_width: float
+    fill_opacity: float
+
+
+@dataclass
 class LegendEntry:
     label: str
     lines: list[SwatchLine]
     dots: list[SwatchDot]
     ellipses: list[SwatchEllipse]
+    rectangles: list[SwatchRectangle]
     tooltip: str = ""  # longer text, shown on hover
 
 
@@ -103,6 +115,13 @@ def swatch_ellipse(color: str, line_width: float, opacity: float) -> SwatchEllip
                          width=round(line_width * LEGEND_SCALE, 2), opacity=opacity)
 
 
+def swatch_rectangle(color: str, line_width: float, fill_opacity: float,
+                     x_start: float, x_end: float, height: float) -> SwatchRectangle:
+    """A rectangle on the middle line of the swatch, lightly filled. line_width in points of the plot."""
+    return SwatchRectangle(color=color, x=x_start, y=(SWATCH_HEIGHT - height) / 2, width=x_end - x_start,
+                           height=height, line_width=round(line_width * LEGEND_SCALE, 2), fill_opacity=fill_opacity)
+
+
 # Legend entries, one per mark of the map
 
 def legend_track(color: str, label: str) -> LegendEntry:
@@ -113,7 +132,8 @@ def legend_track(color: str, label: str) -> LegendEntry:
     return LegendEntry(label=label,
                        lines=[swatch_line(color, world_bev.TRACK_LINE_WIDTH, 2, SWATCH_WIDTH - 2)],
                        dots=dots,
-                       ellipses=[])
+                       ellipses=[],
+                       rectangles=[])
 
 
 def legend_ego() -> LegendEntry:
@@ -133,6 +153,7 @@ def legend_moving() -> LegendEntry:
                        lines=lines,
                        dots=dots,
                        ellipses=[],
+                       rectangles=[],
                        tooltip=f"moving vehicles, one color per track, {len(world_bev.TRACK_COLORS)} colors in turn")
 
 
@@ -141,12 +162,15 @@ def legend_parked() -> LegendEntry:
 
 
 def legend_car_at_frame() -> LegendEntry:
+    """A box pointing right, with the line from its middle to the nose."""
     return LegendEntry(label="vehicle at the frame",
-                       lines=[swatch_line(world_bev.MUTED_COLOR, world_bev.HEADING_LINE_WIDTH, 8, SWATCH_WIDTH - 2)],
-                       dots=[swatch_dot(world_bev.MUTED_COLOR, world_bev.CAR_DOT_SIZE, 8,
-                                        world_bev.SURFACE_COLOR, world_bev.CAR_DOT_EDGE_WIDTH)],
+                       lines=[swatch_line(world_bev.MUTED_COLOR, world_bev.CAR_LINE_WIDTH, 14, 23)],
+                       dots=[],
                        ellipses=[],
-                       tooltip="vehicle at the frame, in the vehicle's color, line towards its nose")
+                       rectangles=[swatch_rectangle(world_bev.MUTED_COLOR, world_bev.CAR_LINE_WIDTH,
+                                                    world_bev.CAR_FILL_OPACITY, 5, 23, 8)],
+                       tooltip="vehicle at the frame: its box from above, in the vehicle's color, "
+                               "line from its position to the nose")
 
 
 def legend_mu(predictor: str) -> LegendEntry:
@@ -154,6 +178,7 @@ def legend_mu(predictor: str) -> LegendEntry:
                        lines=[swatch_line(world_bev.MUTED_COLOR, world_bev.MU_LINE_WIDTH, 2, SWATCH_WIDTH - 2)],
                        dots=[],
                        ellipses=[],
+                       rectangles=[],
                        tooltip=f"{predictor} prediction μ, in the vehicle's color")
 
 
@@ -163,6 +188,7 @@ def legend_sigma(predictor: str) -> LegendEntry:
                        dots=[],
                        ellipses=[swatch_ellipse(world_bev.MUTED_COLOR, world_bev.SIGMA_LINE_WIDTH,
                                                 world_bev.SIGMA_OPACITY)],
+                       rectangles=[],
                        tooltip=f"{predictor} 1σ ellipse, one per step, in the vehicle's color")
 
 
@@ -171,7 +197,8 @@ def legend_true_future() -> LegendEntry:
                        lines=[swatch_line(world_bev.TRUE_FUTURE_COLOR, world_bev.TRUE_FUTURE_LINE_WIDTH,
                                           2, SWATCH_WIDTH - 2, world_bev.TRUE_FUTURE_DASH)],
                        dots=[],
-                       ellipses=[])
+                       ellipses=[],
+                       rectangles=[])
 
 
 def legend_entries(with_frame: bool, predictor: str, with_sigma: bool) -> list[LegendEntry]:
