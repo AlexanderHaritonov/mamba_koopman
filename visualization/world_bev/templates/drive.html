@@ -39,7 +39,7 @@
 <p>No parked cars.</p>
 {% else %}
 <h2 id="parked-cars">Parked cars: {{ summary.dot_count }} of {{ summary.parked_count }} under {{ dot_rms }} m RMS</h2>
-<p>Positions around their mean, at true scale. Dashed circle: {{ dot_rms }} m.</p>
+<p>Jitter around their mean. Dashed circle: {{ dot_rms }} m.</p>
 <div id="parked" class="figure">{{ panels_svg | safe }}</div>
 {% endif %}
 <script src="{{ svg_pan_zoom_url }}"></script>
