@@ -44,9 +44,11 @@ One folder per website under `site/`, this one in `site/world_bev/`:
 site/world_bev/index.html
 site/world_bev/style.css
 site/world_bev/map_zoom.js
-site/world_bev/drives/<drive>.html
-site/world_bev/thumbnails/<drive>.png
+site/world_bev/drives/drive_<number>.html
+site/world_bev/thumbnails/drive_<number>.png
 ```
+
+- File names without the date: all drives are from 2011_09_26. `main` stops if two drives get the same name.
 
 - About 37 drive pages, about 0.5 MB each. Cloudflare Pages allows 25 MiB per file.
 - Zoom: mouse wheel zooms, dragging pans, on the inlined SVG.

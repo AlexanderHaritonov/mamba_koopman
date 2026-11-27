@@ -5,7 +5,7 @@ and the parked cars below. The frame: the most turning samples, then the most sa
 The legend and all text are HTML. The SVGs and thumbnails come from plot_world_bev.py.
 Pages come from the Jinja templates in templates/; style.css and map_zoom.js are copied as they are.
 
-Output: site/world_bev/: index.html, style.css, map_zoom.js, drives/<drive>.html, thumbnails/<drive>.png
+Output: site/world_bev/: index.html, style.css, map_zoom.js, drives/drive_<number>.html, thumbnails/drive_<number>.png
 Upload: wrangler pages deploy site (this site is then under /world_bev/)
 Reads samples/vehicle_poses_world.csv, samples/samples_<split>.npz and predictions/<predictor>_<split>.npz.
 """
@@ -178,7 +178,7 @@ def legend_entries(with_frame: bool, predictor: str, with_sigma: bool) -> list[L
 @dataclass
 class DriveCard:
     """One thumbnail on the index page."""
-    drive: str
+    file_name: str  # of the drive page and the thumbnail, without extension
     label: str
     labeled_track_count: int
     frame: int | None  # None: no samples
@@ -189,6 +189,11 @@ class DriveCard:
 def drive_label(drive: str) -> str:
     """2011_09_26_drive_0011 -> drive 0011"""
     return "drive " + drive.split("_drive_")[1]
+
+
+def drive_file_name(drive: str) -> str:
+    """2011_09_26_drive_0011 -> drive_0011"""
+    return "drive_" + drive.split("_drive_")[1]
 
 
 def inline_svg(svg: str) -> str:
@@ -262,7 +267,12 @@ def main():
         shutil.copyfile(os.path.join(TEMPLATES_DIR, filename), os.path.join(args.out_dir, filename))
 
     cards = []
+    file_names = []
     for drive in drives:
+        file_name = drive_file_name(drive)
+        if file_name in file_names:
+            raise ValueError(f"two drives with the file name {file_name}")
+        file_names.append(file_name)
         tracks = world_bev.tracks_of_drive(all_tracks, drive)
         summary = world_bev.drive_summary(tracks)
         split = world_bev.split_of_drive(drive)
@@ -305,12 +315,12 @@ def main():
                                      panels_svg=panels_svg,
                                      dot_rms=world_bev.DOT_RMS,
                                      svg_pan_zoom_url=SVG_PAN_ZOOM_URL)
-        with open(os.path.join(args.out_dir, "drives", f"{drive}.html"), "w") as f:
+        with open(os.path.join(args.out_dir, "drives", f"{file_name}.html"), "w") as f:
             f.write(page)
 
-        thumbnail_path = os.path.join(args.out_dir, "thumbnails", f"{drive}.png")
+        thumbnail_path = os.path.join(args.out_dir, "thumbnails", f"{file_name}.png")
         thumbnail_width, thumbnail_height = world_bev.write_thumbnail_png(thumbnail_path, tracks)
-        cards.append(DriveCard(drive=drive,
+        cards.append(DriveCard(file_name=file_name,
                                label=drive_label(drive),
                                labeled_track_count=summary.labeled_track_count,
                                frame=frame,

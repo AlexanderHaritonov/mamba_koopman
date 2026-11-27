@@ -5,8 +5,8 @@
 <p>KITTI raw drives. A click opens the frame with the most turning cars.</p>
 <div class="grid">
 {% for card in cards %}
-<a class="card" href="drives/{{ card.drive }}.html">
-<img src="thumbnails/{{ card.drive }}.png" width="{{ card.thumbnail_width }}" height="{{ card.thumbnail_height }}"
+<a class="card" href="drives/{{ card.file_name }}.html">
+<img src="thumbnails/{{ card.file_name }}.png" width="{{ card.thumbnail_width }}" height="{{ card.thumbnail_height }}"
      loading="lazy" alt="tracks of {{ card.label }}">
 <span class="name">{{ card.label }}</span>
 <span class="meta">{{ card.labeled_track_count }} track{{ "" if card.labeled_track_count == 1 else "s" }} ·
