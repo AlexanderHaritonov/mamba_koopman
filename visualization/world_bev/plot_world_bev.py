@@ -3,6 +3,7 @@
 Parked cars should be dots. A labeled track is parked if all its positions stay within PARKED_SPREAD of their mean.
 The parked panels show each parked car's positions around their mean, at true scale, with a DOT_RMS circle.
 With a frame, the map also shows each car at that frame, and the predictions made at that frame.
+Colors: ego black, parked gray, each moving track one of TRACK_COLORS. Cars at the frame and predictions in their track's color.
 
 The SVGs have no title and no legend: world_bev_site.py puts them into HTML pages with both.
 
@@ -45,15 +46,15 @@ THUMBNAIL_HEIGHT = 3.0  # inches
 THUMBNAIL_DPI = 100
 
 # Reference palette of the plotting guide
-SURFACE_COLOR = "#fcfcfb"
+SURFACE_COLOR = "#ebe9e3"  # map background, "stone"
 EGO_COLOR = "#0b0b0b"
-MOVING_COLOR = "#2a78d6"
-PARKED_COLOR = "#eb6834"
-PREDICTION_COLOR = "#1baf7a"
+PARKED_COLOR = "#898781"
+# moving tracks take these in turn, by track id: blue, orange, aqua, green, violet, red
+TRACK_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#008300", "#6250d6", "#e34948"]
 TRUE_FUTURE_COLOR = "#52514e"
 TEXT_COLOR = "#52514e"
 MUTED_COLOR = "#898781"
-GRID_COLOR = "#e1e0d9"
+GRID_COLOR = "#d5d3cc"
 AXIS_COLOR = "#c3c2b7"
 
 # Marks, in points. The HTML legend uses the same values.
@@ -221,18 +222,27 @@ def predictions_in_world(samples: Samples, predictions: Predictions,
 
 # Drawing: matplotlib, each function takes an axes
 
-def track_color(track: VehicleTrack) -> str:
-    if track.object_type == "Ego":
-        return EGO_COLOR
-    if is_parked(track):
-        return PARKED_COLOR
-    return MOVING_COLOR
+def track_colors(tracks: list[VehicleTrack]) -> dict[int, str]:
+    """Track id -> color. Ego black, parked gray, moving tracks take TRACK_COLORS in turn, by track id."""
+    colors = {}
+    moving_ids = []
+    for track in tracks:
+        if track.object_type == "Ego":
+            colors[track.track_id] = EGO_COLOR
+        elif is_parked(track):
+            colors[track.track_id] = PARKED_COLOR
+        else:
+            moving_ids.append(track.track_id)
+    moving_ids.sort()
+    for index, track_id in enumerate(moving_ids):
+        colors[track_id] = TRACK_COLORS[index % len(TRACK_COLORS)]
+    return colors
 
 
-def draw_tracks(axes: Axes, tracks: list[VehicleTrack], with_labels: bool):
+def draw_tracks(axes: Axes, tracks: list[VehicleTrack], colors: dict[int, str], with_labels: bool):
     """All tracks from start to end: a dot per frame on a thin line. Labels: the track id at the last position."""
     for track in tracks:
-        color = track_color(track)
+        color = colors[track.track_id]
         xy = track.positions[:, :2]
         axes.plot(xy[:, 0], xy[:, 1], color=color, linewidth=TRACK_LINE_WIDTH,
                   marker="o", markersize=TRACK_DOT_SIZE, markeredgewidth=0)
@@ -246,27 +256,29 @@ def draw_tracks(axes: Axes, tracks: list[VehicleTrack], with_labels: bool):
                       textcoords="offset points", fontsize=TRACK_LABEL_SIZE, color=TEXT_COLOR)
 
 
-def draw_cars_at_frame(axes: Axes, tracks: list[VehicleTrack], frame: int):
+def draw_cars_at_frame(axes: Axes, tracks: list[VehicleTrack], frame: int, colors: dict[int, str]):
     """Each car at the frame: a dot, and a line towards its nose."""
     for car in cars_at_frame(tracks, frame):
-        color = track_color(car.track)
+        color = colors[car.track.track_id]
         segment = heading_segment(car)
         axes.plot(segment[:, 0], segment[:, 1], color=color, linewidth=HEADING_LINE_WIDTH, solid_capstyle="round")
         axes.plot(car.xy[0], car.xy[1], marker="o", markersize=CAR_DOT_SIZE, color=color,
                   markeredgecolor=SURFACE_COLOR, markeredgewidth=CAR_DOT_EDGE_WIDTH)
 
 
-def draw_predictions(axes: Axes, predictions: list[PredictionInWorld]):
-    """True future dashed, predicted mu as a line, 1σ ellipses if there is sigma. All start at the car at t."""
+def draw_predictions(axes: Axes, predictions: list[PredictionInWorld], colors: dict[int, str]):
+    """True future dashed, predicted mu as a line, 1σ ellipses if there is sigma. All start at the car at t.
+    mu and the ellipses in the car's color."""
     for prediction in predictions:
+        color = colors[prediction.track_id]
         true_line = np.vstack([prediction.start, prediction.true_future])
         mu_line = np.vstack([prediction.start, prediction.mu])
         axes.plot(true_line[:, 0], true_line[:, 1], color=TRUE_FUTURE_COLOR, linewidth=TRUE_FUTURE_LINE_WIDTH,
                   linestyle=(0, TRUE_FUTURE_DASH))
-        axes.plot(mu_line[:, 0], mu_line[:, 1], color=PREDICTION_COLOR, linewidth=MU_LINE_WIDTH)
+        axes.plot(mu_line[:, 0], mu_line[:, 1], color=color, linewidth=MU_LINE_WIDTH)
         if prediction.ellipses is not None:
             for ellipse in prediction.ellipses:
-                axes.plot(ellipse[:, 0], ellipse[:, 1], color=PREDICTION_COLOR, linewidth=SIGMA_LINE_WIDTH,
+                axes.plot(ellipse[:, 0], ellipse[:, 1], color=color, linewidth=SIGMA_LINE_WIDTH,
                           alpha=SIGMA_OPACITY)
 
 
@@ -275,7 +287,7 @@ def draw_parked_panel(axes: Axes, track: VehicleTrack):
     offsets = offsets_from_mean(track)
     rms, largest = track_spread(track)
     angles = np.linspace(0, 2 * math.pi, 73)
-    axes.plot(DOT_RMS * np.cos(angles), DOT_RMS * np.sin(angles), color=MUTED_COLOR,
+    axes.plot(DOT_RMS * np.cos(angles), DOT_RMS * np.sin(angles), color=TEXT_COLOR,
               linewidth=DOT_CIRCLE_LINE_WIDTH, linestyle=(0, TRUE_FUTURE_DASH))
     axes.plot(offsets[:, 0], offsets[:, 1], linestyle="none", marker="o", markersize=PANEL_DOT_SIZE,
               color=PARKED_COLOR, markeredgewidth=0)
@@ -345,10 +357,11 @@ def world_bev_svg(tracks: list[VehicleTrack], frame: int | None,
         axes = figure.add_axes((0.0, 0.0, 1.0, 1.0))
         axes.set_aspect("equal", adjustable="datalim")
         axes.axis("off")
-    draw_tracks(axes, tracks, with_labels=True)
+    colors = track_colors(tracks)
+    draw_tracks(axes, tracks, colors, with_labels=True)
     if frame is not None:
-        draw_cars_at_frame(axes, tracks, frame)
-        draw_predictions(axes, predictions_world)
+        draw_cars_at_frame(axes, tracks, frame, colors)
+        draw_predictions(axes, predictions_world, colors)
     svg = svg_text(figure)
     # read the limits after drawing: the equal aspect changes them while drawing
     x_min, x_max = axes.get_xlim()
@@ -378,7 +391,7 @@ def write_thumbnail_png(png_path: str, tracks: list[VehicleTrack]) -> tuple[int,
     axes = figure.add_axes((0, 0, 1, 1))
     axes.set_aspect("equal", adjustable="datalim")
     axes.axis("off")
-    draw_tracks(axes, tracks, with_labels=False)
+    draw_tracks(axes, tracks, track_colors(tracks), with_labels=False)
     figure.savefig(png_path, dpi=THUMBNAIL_DPI)
     return round(THUMBNAIL_WIDTH * THUMBNAIL_DPI), round(THUMBNAIL_HEIGHT * THUMBNAIL_DPI)
 

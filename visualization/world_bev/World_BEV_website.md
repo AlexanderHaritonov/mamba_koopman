@@ -26,6 +26,23 @@ All in `visualization/world_bev/`. Run from the project folder:
 - No full-size PNG any more.
 - `draw_legend()` is removed. Title lines and the parked-car number move to HTML.
 
+## Colors
+
+| Mark | Color |
+|---|---|
+| map background (map, thumbnails, parked panels) | stone `#ebe9e3` |
+| ego | black `#0b0b0b` |
+| parked | gray `#898781` |
+| moving | `TRACK_COLORS` in turn, by track id: blue, orange, aqua, green, violet, red |
+| car at the frame, μ, 1σ | the car's track color |
+| true future, labels | dark gray `#52514e` |
+| grid | `#d5d3cc` |
+
+- `track_colors(tracks)`: track id → color, for the drawing functions.
+- No yellow and magenta: too little contrast on stone. The order keeps tracks next in id order apart, also for colorblind readers.
+- Legend: "moving vehicles" shows the first three colors. μ, 1σ and "vehicle at the frame" have gray swatches, the tooltip says "in the vehicle's color".
+- Parked panels: dots gray, the dashed 0.2 m circle dark gray.
+
 ## HTML side: `world_bev_site.py`
 
 - No HTML in Python: the text and markup are in the templates, Python passes data.
@@ -77,3 +94,9 @@ site/world_bev/thumbnails/drive_<number>.png
 3. `site/`: in `.gitignore`, uploaded with `wrangler pages deploy site`.
    2026-11-26: the site moved into `site/world_bev/`, so other websites can follow. Deployed from `site/`, it is under `/world_bev/`.
 4. Parked panels on the drive page: kept under the map, as the 0.2 m check.
+
+## Decisions (2026-11-27)
+
+1. File names without the date: `drive_0011.html`, `drive_0011.png`.
+2. One color per moving track, parked gray, μ and 1σ in the car's color.
+3. Map background stone `#ebe9e3`, chosen from 8 light colors. A dark map was tried too: the colors stand out more, but it needs changes in many places.

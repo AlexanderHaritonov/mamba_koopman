@@ -121,7 +121,19 @@ def legend_ego() -> LegendEntry:
 
 
 def legend_moving() -> LegendEntry:
-    return legend_track(world_bev.MOVING_COLOR, "moving vehicle")
+    """Three short pieces of track, in the first three track colors."""
+    lines = []
+    dots = []
+    for index in range(3):
+        color = world_bev.TRACK_COLORS[index]
+        x_start = 2 + index * 8
+        lines.append(swatch_line(color, world_bev.TRACK_LINE_WIDTH, x_start, x_start + 8))
+        dots.append(swatch_dot(color, world_bev.TRACK_DOT_SIZE, x_start + 4))
+    return LegendEntry(label="moving vehicles",
+                       lines=lines,
+                       dots=dots,
+                       ellipses=[],
+                       tooltip=f"moving vehicles, one color per track, {len(world_bev.TRACK_COLORS)} colors in turn")
 
 
 def legend_parked() -> LegendEntry:
@@ -134,24 +146,24 @@ def legend_car_at_frame() -> LegendEntry:
                        dots=[swatch_dot(world_bev.MUTED_COLOR, world_bev.CAR_DOT_SIZE, 8,
                                         world_bev.SURFACE_COLOR, world_bev.CAR_DOT_EDGE_WIDTH)],
                        ellipses=[],
-                       tooltip="vehicle at the frame, line towards its nose")
+                       tooltip="vehicle at the frame, in the vehicle's color, line towards its nose")
 
 
 def legend_mu(predictor: str) -> LegendEntry:
     return LegendEntry(label=f"{predictor} μ",
-                       lines=[swatch_line(world_bev.PREDICTION_COLOR, world_bev.MU_LINE_WIDTH, 2, SWATCH_WIDTH - 2)],
+                       lines=[swatch_line(world_bev.MUTED_COLOR, world_bev.MU_LINE_WIDTH, 2, SWATCH_WIDTH - 2)],
                        dots=[],
                        ellipses=[],
-                       tooltip=f"{predictor} prediction μ")
+                       tooltip=f"{predictor} prediction μ, in the vehicle's color")
 
 
 def legend_sigma(predictor: str) -> LegendEntry:
     return LegendEntry(label=f"{predictor} 1σ per step",
                        lines=[],
                        dots=[],
-                       ellipses=[swatch_ellipse(world_bev.PREDICTION_COLOR, world_bev.SIGMA_LINE_WIDTH,
+                       ellipses=[swatch_ellipse(world_bev.MUTED_COLOR, world_bev.SIGMA_LINE_WIDTH,
                                                 world_bev.SIGMA_OPACITY)],
-                       tooltip=f"{predictor} 1σ ellipse, one per step")
+                       tooltip=f"{predictor} 1σ ellipse, one per step, in the vehicle's color")
 
 
 def legend_true_future() -> LegendEntry:
